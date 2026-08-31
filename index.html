@@ -10,7 +10,6 @@
 
   <title>Staff Face Registration</title>
 
-  <!-- Face API -->
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
   <style>
@@ -46,6 +45,7 @@
     .header p {
       color: #666;
       font-size: 14px;
+      margin-top: 7px;
     }
 
     .card {
@@ -116,10 +116,12 @@
       font-size: 17px;
       font-weight: bold;
       margin-top: 12px;
+      cursor: pointer;
     }
 
     button:disabled {
       background: #aaa;
+      cursor: not-allowed;
     }
 
     .message {
@@ -155,6 +157,10 @@
       color: #174ea6;
     }
 
+    .hidden {
+      display: none;
+    }
+
   </style>
 
 </head>
@@ -181,40 +187,42 @@
       Select Staff Member
     </label>
 
+
     <select id="staffSelect">
 
       <option value="">
-        Select staff member
-      </option>
-
-      <option value="T001">
-        Javeed Ahmad Dar — Teacher
+        Loading staff...
       </option>
 
     </select>
 
 
-    <button id="loadModels">
+    <button
+      id="loadModels">
+
       Load Face Recognition
+
     </button>
 
 
-    <button id="startCamera"
-            disabled>
+    <button
+      id="startCamera"
+      disabled>
 
       Start Camera
 
     </button>
 
 
-    <div class="camera"
-         id="cameraBox"
-         style="display:none">
+    <div
+      id="cameraBox"
+      class="camera hidden">
 
-      <video id="video"
-             autoplay
-             muted
-             playsinline>
+      <video
+        id="video"
+        autoplay
+        muted
+        playsinline>
       </video>
 
       <div class="guide"></div>
@@ -222,24 +230,27 @@
     </div>
 
 
-    <div id="status"
-         class="status">
+    <div
+      id="status"
+      class="status">
 
-      Face recognition is not loaded.
+      Loading staff...
 
     </div>
 
 
-    <button id="capture"
-            disabled>
+    <button
+      id="capture"
+      disabled>
 
-      Detect Face
+      Capture Face
 
     </button>
 
 
-    <div id="message"
-         class="message">
+    <div
+      id="message"
+      class="message">
     </div>
 
   </div>
@@ -248,91 +259,313 @@
 
 
 <script>
-  const APPS_SCRIPT_URL =
+
+
+/* =========================================================
+   CONFIGURATION
+========================================================= */
+
+const APPS_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbzT-N64qGREd32KdznpyibHANy3VwJh25k2oeQ9hwVkLyAldKzDb5mB6ZHLXzvQ-DbC8A/exec";
+
 
 const MODEL_URL =
   "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights";
 
 
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
 const staffSelect =
-  document.getElementById("staffSelect");
+  document.getElementById(
+    "staffSelect"
+  );
+
 
 const loadModelsButton =
-  document.getElementById("loadModels");
+  document.getElementById(
+    "loadModels"
+  );
+
 
 const startCameraButton =
-  document.getElementById("startCamera");
+  document.getElementById(
+    "startCamera"
+  );
+
 
 const captureButton =
-  document.getElementById("capture");
+  document.getElementById(
+    "capture"
+  );
+
 
 const video =
-  document.getElementById("video");
+  document.getElementById(
+    "video"
+  );
+
 
 const cameraBox =
-  document.getElementById("cameraBox");
+  document.getElementById(
+    "cameraBox"
+  );
+
 
 const status =
-  document.getElementById("status");
+  document.getElementById(
+    "status"
+  );
+
 
 const message =
-  document.getElementById("message");
+  document.getElementById(
+    "message"
+  );
 
+
+/* =========================================================
+   VARIABLES
+========================================================= */
 
 let modelsLoaded = false;
+
 let cameraStream = null;
 
 
-/* --------------------------------
+/* =========================================================
+   LOAD STAFF FROM GOOGLE SHEETS
+========================================================= */
+
+function loadStaffFromSheet() {
+
+  status.textContent =
+    "Loading staff members...";
+
+
+  const callbackName =
+    "staffCallback_" +
+    Date.now();
+
+
+  window[callbackName] =
+    function(result) {
+
+      try {
+
+        if (!result.success) {
+
+          throw new Error(
+            result.error ||
+            "Unable to load staff."
+          );
+
+        }
+
+
+        staffSelect.innerHTML =
+          '<option value="">Select staff member</option>';
+
+
+        if (
+          !result.staff ||
+          result.staff.length === 0
+        ) {
+
+          throw new Error(
+            "No active staff members were found."
+          );
+
+        }
+
+
+        result.staff.forEach(
+          function(person) {
+
+            const option =
+              document.createElement(
+                "option"
+              );
+
+
+            option.value =
+              person.staffId;
+
+
+            option.textContent =
+              person.staffName +
+              " — " +
+              person.designation;
+
+
+            staffSelect.appendChild(
+              option
+            );
+
+          }
+        );
+
+
+        status.textContent =
+          "Staff list loaded. Select a staff member.";
+
+      }
+
+      catch (error) {
+
+        console.error(error);
+
+        staffSelect.innerHTML =
+          '<option value="">Unable to load staff</option>';
+
+        showMessage(
+          error.message,
+          "error"
+        );
+
+      }
+
+      finally {
+
+        delete window[callbackName];
+
+
+        const oldScript =
+          document.getElementById(
+            callbackName
+          );
+
+
+        if (oldScript) {
+          oldScript.remove();
+        }
+
+      }
+
+    };
+
+
+  const script =
+    document.createElement(
+      "script"
+    );
+
+
+  script.id =
+    callbackName;
+
+
+  script.src =
+    APPS_SCRIPT_URL +
+    "?action=getStaff" +
+    "&callback=" +
+    encodeURIComponent(
+      callbackName
+    );
+
+
+  script.onerror =
+    function() {
+
+      staffSelect.innerHTML =
+        '<option value="">Connection failed</option>';
+
+
+      showMessage(
+        "Unable to connect to Google Sheets.",
+        "error"
+      );
+
+
+      delete window[callbackName];
+
+
+      script.remove();
+
+    };
+
+
+  document.body.appendChild(
+    script
+  );
+
+}
+
+
+/* =========================================================
    LOAD FACE MODELS
--------------------------------- */
+========================================================= */
 
 loadModelsButton.addEventListener(
   "click",
   async function() {
 
-    loadModelsButton.disabled = true;
+    loadModelsButton.disabled =
+      true;
+
 
     status.textContent =
       "Loading face recognition models...";
 
+
     clearMessage();
+
 
     try {
 
-      await faceapi.nets.tinyFaceDetector.loadFromUri(
-        MODEL_URL
-      );
+      await faceapi.nets
+        .tinyFaceDetector
+        .loadFromUri(
+          MODEL_URL
+        );
 
-      await faceapi.nets.faceLandmark68TinyNet.loadFromUri(
-        MODEL_URL
-      );
 
-      await faceapi.nets.faceRecognitionNet.loadFromUri(
-        MODEL_URL
-      );
+      await faceapi.nets
+        .faceLandmark68TinyNet
+        .loadFromUri(
+          MODEL_URL
+        );
 
-      modelsLoaded = true;
+
+      await faceapi.nets
+        .faceRecognitionNet
+        .loadFromUri(
+          MODEL_URL
+        );
+
+
+      modelsLoaded =
+        true;
+
 
       status.textContent =
-        "Face recognition loaded.";
+        "Face recognition ready.";
+
 
       showMessage(
         "Face recognition is ready.",
         "success"
       );
 
-      startCameraButton.disabled = false;
 
-    } catch (error) {
+      startCameraButton.disabled =
+        false;
+
+    }
+
+    catch (error) {
 
       console.error(error);
 
-      loadModelsButton.disabled = false;
+
+      loadModelsButton.disabled =
+        false;
+
 
       status.textContent =
         "Model loading failed.";
+
 
       showMessage(
         "Could not load the face recognition models. Check your internet connection.",
@@ -345,9 +578,9 @@ loadModelsButton.addEventListener(
 );
 
 
-/* --------------------------------
+/* =========================================================
    START CAMERA
--------------------------------- */
+========================================================= */
 
 startCameraButton.addEventListener(
   "click",
@@ -363,32 +596,53 @@ startCameraButton.addEventListener(
       return;
     }
 
+
+    if (!staffSelect.value) {
+
+      showMessage(
+        "Please select a staff member first.",
+        "warning"
+      );
+
+      return;
+    }
+
+
+    clearMessage();
+
+
     try {
 
       cameraStream =
-        await navigator.mediaDevices.getUserMedia({
+        await navigator.mediaDevices
+          .getUserMedia({
 
-          video: {
-            facingMode: "user",
-            width: {
-              ideal: 640
+            video: {
+
+              facingMode: "user",
+
+              width: {
+                ideal: 640
+              },
+
+              height: {
+                ideal: 480
+              }
+
             },
-            height: {
-              ideal: 480
-            }
-          },
 
-          audio: false
+            audio: false
 
-        });
+          });
 
 
       video.srcObject =
         cameraStream;
 
 
-      cameraBox.style.display =
-        "block";
+      cameraBox.classList.remove(
+        "hidden"
+      );
 
 
       startCameraButton.disabled =
@@ -402,15 +656,15 @@ startCameraButton.addEventListener(
       status.textContent =
         "Camera ready. Position your face inside the oval.";
 
-      clearMessage();
+    }
 
-
-    } catch (error) {
+    catch (error) {
 
       console.error(error);
 
+
       showMessage(
-        "Camera access failed.",
+        "Camera access failed. Please allow camera permission.",
         "error"
       );
 
@@ -420,18 +674,21 @@ startCameraButton.addEventListener(
 );
 
 
-/* --------------------------------
-   DETECT FACE
--------------------------------- */
+/* =========================================================
+   CAPTURE FACE
+========================================================= */
 
 captureButton.addEventListener(
   "click",
   async function() {
 
-    captureButton.disabled = true;
+    captureButton.disabled =
+      true;
+
 
     status.textContent =
-      "Looking for your face...";
+      "Detecting face...";
+
 
     clearMessage();
 
@@ -443,11 +700,16 @@ captureButton.addEventListener(
           .detectSingleFace(
             video,
             new faceapi.TinyFaceDetectorOptions({
+
               inputSize: 320,
+
               scoreThreshold: 0.5
+
             })
           )
-          .withFaceLandmarks(true)
+          .withFaceLandmarks(
+            true
+          )
           .withFaceDescriptor();
 
 
@@ -456,53 +718,86 @@ captureButton.addEventListener(
         status.textContent =
           "No face detected.";
 
+
         showMessage(
-          "No face detected. Make sure your face is clearly visible and try again.",
+          "No face detected. Move closer and make sure your face is clearly visible.",
           "warning"
         );
 
+
         captureButton.disabled =
           false;
+
 
         return;
 
       }
 
 
-      const descriptor =
+      let descriptor =
         Array.from(
           detection.descriptor
         );
 
 
+      /*
+       * Round values before sending them
+       * to Apps Script.
+       */
+      descriptor =
+        descriptor.map(
+          function(value) {
+
+            return Number(
+              Number(value).toFixed(6)
+            );
+
+          }
+        );
+
+
       console.log(
-  "Face descriptor:",
-  descriptor
-);
-
-console.log(
-  "Descriptor length:",
-  descriptor.length
-);
-
-status.textContent =
-  "Face detected. Saving registration...";
-
-saveFaceDescriptor(descriptor);
+        "Descriptor length:",
+        descriptor.length
+      );
 
 
-    } catch (error) {
+      if (
+        descriptor.length !== 128
+      ) {
+
+        throw new Error(
+          "Invalid face descriptor."
+        );
+
+      }
+
+
+      status.textContent =
+        "Face detected. Saving registration...";
+
+
+      saveFaceDescriptor(
+        descriptor
+      );
+
+    }
+
+    catch (error) {
 
       console.error(error);
 
+
       status.textContent =
         "Face detection failed.";
+
 
       showMessage(
         error.message ||
         "Unable to process the face.",
         "error"
       );
+
 
       captureButton.disabled =
         false;
@@ -513,34 +808,17 @@ saveFaceDescriptor(descriptor);
 );
 
 
-/* --------------------------------
-   UI FUNCTIONS
--------------------------------- */
+/* =========================================================
+   SAVE FACE DESCRIPTOR TO GOOGLE SHEET
+========================================================= */
 
-function showMessage(text, type) {
-
-  message.textContent =
-    text;
-
-  message.className =
-    "message " + type;
-
-}
-
-
-function clearMessage() {
-
-  message.textContent =
-    "";
-
-  message.className =
-    "message";
-
-}
-  function saveFaceDescriptor(descriptor) {
+function saveFaceDescriptor(
+  descriptor
+) {
 
   const staffId =
     staffSelect.value;
+
 
   if (!staffId) {
 
@@ -549,25 +827,13 @@ function clearMessage() {
       "warning"
     );
 
-    captureButton.disabled = false;
+
+    captureButton.disabled =
+      false;
+
 
     return;
-  }
 
-
-  if (
-    !Array.isArray(descriptor) ||
-    descriptor.length !== 128
-  ) {
-
-    showMessage(
-      "Invalid face descriptor.",
-      "error"
-    );
-
-    captureButton.disabled = false;
-
-    return;
   }
 
 
@@ -584,7 +850,8 @@ function clearMessage() {
         if (result.success) {
 
           status.textContent =
-            "Face registration completed.";
+            "Registration completed.";
+
 
           showMessage(
             result.message ||
@@ -592,10 +859,16 @@ function clearMessage() {
             "success"
           );
 
-        } else {
+
+          stopCamera();
+
+        }
+
+        else {
 
           status.textContent =
             "Registration failed.";
+
 
           showMessage(
             result.error ||
@@ -605,19 +878,25 @@ function clearMessage() {
 
         }
 
-      } finally {
+      }
 
-        captureButton.disabled = false;
+      finally {
+
+        captureButton.disabled =
+          false;
+
 
         delete window[callbackName];
 
-        const script =
+
+        const oldScript =
           document.getElementById(
             callbackName
           );
 
-        if (script) {
-          script.remove();
+
+        if (oldScript) {
+          oldScript.remove();
         }
 
       }
@@ -626,28 +905,41 @@ function clearMessage() {
 
 
   const descriptorText =
-    JSON.stringify(descriptor);
+    JSON.stringify(
+      descriptor
+    );
 
 
   const url =
     APPS_SCRIPT_URL +
     "?action=saveFace" +
     "&staffId=" +
-    encodeURIComponent(staffId) +
+    encodeURIComponent(
+      staffId
+    ) +
     "&descriptor=" +
-    encodeURIComponent(descriptorText) +
+    encodeURIComponent(
+      descriptorText
+    ) +
     "&callback=" +
-    encodeURIComponent(callbackName);
+    encodeURIComponent(
+      callbackName
+    );
 
 
   const script =
-    document.createElement("script");
+    document.createElement(
+      "script"
+    );
+
 
   script.id =
     callbackName;
 
+
   script.src =
     url;
+
 
   script.onerror =
     function() {
@@ -657,19 +949,102 @@ function clearMessage() {
         "error"
       );
 
+
       captureButton.disabled =
         false;
 
+
       delete window[callbackName];
+
 
       script.remove();
 
     };
 
 
-  document.body.appendChild(script);
+  document.body.appendChild(
+    script
+  );
 
 }
+
+
+/* =========================================================
+   STOP CAMERA
+========================================================= */
+
+function stopCamera() {
+
+  if (cameraStream) {
+
+    cameraStream
+      .getTracks()
+      .forEach(
+        function(track) {
+
+          track.stop();
+
+        }
+      );
+
+
+    cameraStream =
+      null;
+
+  }
+
+
+  video.srcObject =
+    null;
+
+
+  cameraBox.classList.add(
+    "hidden"
+  );
+
+
+  startCameraButton.disabled =
+    false;
+
+}
+
+
+/* =========================================================
+   UI FUNCTIONS
+========================================================= */
+
+function showMessage(
+  text,
+  type
+) {
+
+  message.textContent =
+    text;
+
+
+  message.className =
+    "message " + type;
+
+}
+
+
+function clearMessage() {
+
+  message.textContent =
+    "";
+
+
+  message.className =
+    "message";
+
+}
+
+
+/* =========================================================
+   INITIALIZE
+========================================================= */
+
+loadStaffFromSheet();
 
 </script>
 
