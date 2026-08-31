@@ -2,12 +2,16 @@
 <html lang="en">
 
 <head>
+
   <meta charset="UTF-8">
 
   <meta name="viewport"
         content="width=device-width, initial-scale=1.0">
 
-  <title>Staff Face Attendance</title>
+  <title>Staff Face Registration</title>
+
+  <!-- Face API -->
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
   <style>
 
@@ -24,14 +28,14 @@
 
     .container {
       width: 100%;
-      max-width: 500px;
+      max-width: 520px;
       margin: auto;
-      padding: 25px 18px;
+      padding: 20px;
     }
 
     .header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
 
     .header h1 {
@@ -40,21 +44,37 @@
     }
 
     .header p {
-      margin-top: 7px;
       color: #666;
       font-size: 14px;
     }
 
     .card {
       background: white;
-      border-radius: 16px;
       padding: 20px;
-      box-shadow: 0 3px 15px rgba(0,0,0,0.08);
+      border-radius: 16px;
+      box-shadow: 0 3px 15px rgba(0,0,0,.08);
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    select {
+      width: 100%;
+      min-height: 48px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 16px;
+      background: white;
     }
 
     .camera {
       width: 100%;
       aspect-ratio: 4 / 3;
+      margin-top: 18px;
       background: #111;
       border-radius: 14px;
       overflow: hidden;
@@ -95,26 +115,20 @@
       color: white;
       font-size: 17px;
       font-weight: bold;
-      cursor: pointer;
+      margin-top: 12px;
     }
 
     button:disabled {
       background: #aaa;
-      cursor: not-allowed;
     }
 
     .message {
+      display: none;
       margin-top: 15px;
       padding: 12px;
       border-radius: 10px;
       text-align: center;
-      display: none;
-    }
-
-    .error {
-      display: block;
-      background: #fce8e6;
-      color: #b31412;
+      font-weight: bold;
     }
 
     .success {
@@ -123,9 +137,28 @@
       color: #137333;
     }
 
+    .error {
+      display: block;
+      background: #fce8e6;
+      color: #b31412;
+    }
+
+    .warning {
+      display: block;
+      background: #fef7e0;
+      color: #8a4b00;
+    }
+
+    .info {
+      display: block;
+      background: #e8f0fe;
+      color: #174ea6;
+    }
+
   </style>
 
 </head>
+
 
 <body>
 
@@ -133,10 +166,10 @@
 
   <div class="header">
 
-    <h1>Staff Attendance</h1>
+    <h1>Staff Face Registration</h1>
 
     <p>
-      Face Authentication System
+      Face Authentication Attendance System
     </p>
 
   </div>
@@ -144,13 +177,44 @@
 
   <div class="card">
 
-    <div class="camera">
+    <label for="staffSelect">
+      Select Staff Member
+    </label>
 
-      <video
-        id="video"
-        autoplay
-        muted
-        playsinline>
+    <select id="staffSelect">
+
+      <option value="">
+        Select staff member
+      </option>
+
+      <option value="T001">
+        Javeed Ahmad Dar — Teacher
+      </option>
+
+    </select>
+
+
+    <button id="loadModels">
+      Load Face Recognition
+    </button>
+
+
+    <button id="startCamera"
+            disabled>
+
+      Start Camera
+
+    </button>
+
+
+    <div class="camera"
+         id="cameraBox"
+         style="display:none">
+
+      <video id="video"
+             autoplay
+             muted
+             playsinline>
       </video>
 
       <div class="guide"></div>
@@ -158,23 +222,24 @@
     </div>
 
 
-    <div
-      id="status"
-      class="status">
+    <div id="status"
+         class="status">
 
-      Camera is not started
+      Face recognition is not loaded.
 
     </div>
 
 
-    <button id="startCamera">
-      Start Camera
+    <button id="capture"
+            disabled>
+
+      Detect Face
+
     </button>
 
 
-    <div
-      id="message"
-      class="message">
+    <div id="message"
+         class="message">
     </div>
 
   </div>
@@ -184,11 +249,27 @@
 
 <script>
 
+const MODEL_URL =
+  "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights";
+
+
+const staffSelect =
+  document.getElementById("staffSelect");
+
+const loadModelsButton =
+  document.getElementById("loadModels");
+
+const startCameraButton =
+  document.getElementById("startCamera");
+
+const captureButton =
+  document.getElementById("capture");
+
 const video =
   document.getElementById("video");
 
-const startButton =
-  document.getElementById("startCamera");
+const cameraBox =
+  document.getElementById("cameraBox");
 
 const status =
   document.getElementById("status");
@@ -196,60 +277,63 @@ const status =
 const message =
   document.getElementById("message");
 
-let stream = null;
+
+let modelsLoaded = false;
+let cameraStream = null;
 
 
-startButton.addEventListener(
+/* --------------------------------
+   LOAD FACE MODELS
+-------------------------------- */
+
+loadModelsButton.addEventListener(
   "click",
   async function() {
 
-    clearMessage();
-
-    startButton.disabled = true;
+    loadModelsButton.disabled = true;
 
     status.textContent =
-      "Requesting camera access...";
+      "Loading face recognition models...";
+
+    clearMessage();
 
     try {
 
-      stream =
-        await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "user",
-            width: {
-              ideal: 640
-            },
-            height: {
-              ideal: 480
-            }
-          },
-          audio: false
-        });
+      await faceapi.nets.tinyFaceDetector.loadFromUri(
+        MODEL_URL
+      );
 
-      video.srcObject = stream;
+      await faceapi.nets.faceLandmark68TinyNet.loadFromUri(
+        MODEL_URL
+      );
+
+      await faceapi.nets.faceRecognitionNet.loadFromUri(
+        MODEL_URL
+      );
+
+      modelsLoaded = true;
 
       status.textContent =
-        "Camera is working";
-
-      startButton.textContent =
-        "Camera Started";
+        "Face recognition loaded.";
 
       showMessage(
-        "Camera access successful.",
+        "Face recognition is ready.",
         "success"
       );
+
+      startCameraButton.disabled = false;
 
     } catch (error) {
 
       console.error(error);
 
-      startButton.disabled = false;
+      loadModelsButton.disabled = false;
 
       status.textContent =
-        "Camera could not be started";
+        "Model loading failed.";
 
       showMessage(
-        "Camera access was denied or is unavailable.",
+        "Could not load the face recognition models. Check your internet connection.",
         "error"
       );
 
@@ -259,9 +343,192 @@ startButton.addEventListener(
 );
 
 
+/* --------------------------------
+   START CAMERA
+-------------------------------- */
+
+startCameraButton.addEventListener(
+  "click",
+  async function() {
+
+    if (!modelsLoaded) {
+
+      showMessage(
+        "Please load face recognition first.",
+        "warning"
+      );
+
+      return;
+    }
+
+    try {
+
+      cameraStream =
+        await navigator.mediaDevices.getUserMedia({
+
+          video: {
+            facingMode: "user",
+            width: {
+              ideal: 640
+            },
+            height: {
+              ideal: 480
+            }
+          },
+
+          audio: false
+
+        });
+
+
+      video.srcObject =
+        cameraStream;
+
+
+      cameraBox.style.display =
+        "block";
+
+
+      startCameraButton.disabled =
+        true;
+
+
+      captureButton.disabled =
+        false;
+
+
+      status.textContent =
+        "Camera ready. Position your face inside the oval.";
+
+      clearMessage();
+
+
+    } catch (error) {
+
+      console.error(error);
+
+      showMessage(
+        "Camera access failed.",
+        "error"
+      );
+
+    }
+
+  }
+);
+
+
+/* --------------------------------
+   DETECT FACE
+-------------------------------- */
+
+captureButton.addEventListener(
+  "click",
+  async function() {
+
+    captureButton.disabled = true;
+
+    status.textContent =
+      "Looking for your face...";
+
+    clearMessage();
+
+
+    try {
+
+      const detection =
+        await faceapi
+          .detectSingleFace(
+            video,
+            new faceapi.TinyFaceDetectorOptions({
+              inputSize: 320,
+              scoreThreshold: 0.5
+            })
+          )
+          .withFaceLandmarks(true)
+          .withFaceDescriptor();
+
+
+      if (!detection) {
+
+        status.textContent =
+          "No face detected.";
+
+        showMessage(
+          "No face detected. Make sure your face is clearly visible and try again.",
+          "warning"
+        );
+
+        captureButton.disabled =
+          false;
+
+        return;
+
+      }
+
+
+      const descriptor =
+        Array.from(
+          detection.descriptor
+        );
+
+
+      console.log(
+        "Face descriptor:",
+        descriptor
+      );
+
+
+      status.textContent =
+        "Face detected successfully.";
+
+
+      showMessage(
+        "Face detected. A 128-value face descriptor was generated.",
+        "success"
+      );
+
+
+      console.log(
+        "Descriptor length:",
+        descriptor.length
+      );
+
+
+      captureButton.disabled =
+        false;
+
+
+    } catch (error) {
+
+      console.error(error);
+
+      status.textContent =
+        "Face detection failed.";
+
+      showMessage(
+        error.message ||
+        "Unable to process the face.",
+        "error"
+      );
+
+      captureButton.disabled =
+        false;
+
+    }
+
+  }
+);
+
+
+/* --------------------------------
+   UI FUNCTIONS
+-------------------------------- */
+
 function showMessage(text, type) {
 
-  message.textContent = text;
+  message.textContent =
+    text;
 
   message.className =
     "message " + type;
@@ -271,7 +538,8 @@ function showMessage(text, type) {
 
 function clearMessage() {
 
-  message.textContent = "";
+  message.textContent =
+    "";
 
   message.className =
     "message";
