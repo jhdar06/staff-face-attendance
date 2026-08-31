@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>Staff Face Attendance</title>
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f1f3f4;
+      color: #202124;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 500px;
+      margin: auto;
+      padding: 25px 18px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 26px;
+    }
+
+    .header p {
+      margin-top: 7px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 3px 15px rgba(0,0,0,0.08);
+    }
+
+    .camera {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #111;
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    .guide {
+      position: absolute;
+      width: 58%;
+      height: 72%;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border: 3px solid white;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .status {
+      text-align: center;
+      margin: 16px 0;
+      font-weight: bold;
+    }
+
+    button {
+      width: 100%;
+      min-height: 50px;
+      border: none;
+      border-radius: 10px;
+      background: #1a73e8;
+      color: white;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+
+    .message {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 10px;
+      text-align: center;
+      display: none;
+    }
+
+    .error {
+      display: block;
+      background: #fce8e6;
+      color: #b31412;
+    }
+
+    .success {
+      display: block;
+      background: #e6f4ea;
+      color: #137333;
+    }
+
+  </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="header">
+
+    <h1>Staff Attendance</h1>
+
+    <p>
+      Face Authentication System
+    </p>
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="camera">
+
+      <video
+        id="video"
+        autoplay
+        muted
+        playsinline>
+      </video>
+
+      <div class="guide"></div>
+
+    </div>
+
+
+    <div
+      id="status"
+      class="status">
+
+      Camera is not started
+
+    </div>
+
+
+    <button id="startCamera">
+      Start Camera
+    </button>
+
+
+    <div
+      id="message"
+      class="message">
+    </div>
+
+  </div>
+
+</div>
+
+
+<script>
+
+const video =
+  document.getElementById("video");
+
+const startButton =
+  document.getElementById("startCamera");
+
+const status =
+  document.getElementById("status");
+
+const message =
+  document.getElementById("message");
+
+let stream = null;
+
+
+startButton.addEventListener(
+  "click",
+  async function() {
+
+    clearMessage();
+
+    startButton.disabled = true;
+
+    status.textContent =
+      "Requesting camera access...";
+
+    try {
+
+      stream =
+        await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: {
+              ideal: 640
+            },
+            height: {
+              ideal: 480
+            }
+          },
+          audio: false
+        });
+
+      video.srcObject = stream;
+
+      status.textContent =
+        "Camera is working";
+
+      startButton.textContent =
+        "Camera Started";
+
+      showMessage(
+        "Camera access successful.",
+        "success"
+      );
+
+    } catch (error) {
+
+      console.error(error);
+
+      startButton.disabled = false;
+
+      status.textContent =
+        "Camera could not be started";
+
+      showMessage(
+        "Camera access was denied or is unavailable.",
+        "error"
+      );
+
+    }
+
+  }
+);
+
+
+function showMessage(text, type) {
+
+  message.textContent = text;
+
+  message.className =
+    "message " + type;
+
+}
+
+
+function clearMessage() {
+
+  message.textContent = "";
+
+  message.className =
+    "message";
+
+}
+
+</script>
+
+</body>
+
+</html>
