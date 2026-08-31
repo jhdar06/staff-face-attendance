@@ -248,6 +248,8 @@
 
 
 <script>
+  const APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbzT-N64qGREd32KdznpyibHANy3VwJh25k2oeQ9hwVkLyAldKzDb5mB6ZHLXzvQ-DbC8A/exec";
 
 const MODEL_URL =
   "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights";
@@ -474,29 +476,19 @@ captureButton.addEventListener(
 
 
       console.log(
-        "Face descriptor:",
-        descriptor
-      );
+  "Face descriptor:",
+  descriptor
+);
 
+console.log(
+  "Descriptor length:",
+  descriptor.length
+);
 
-      status.textContent =
-        "Face detected successfully.";
+status.textContent =
+  "Face detected. Saving registration...";
 
-
-      showMessage(
-        "Face detected. A 128-value face descriptor was generated.",
-        "success"
-      );
-
-
-      console.log(
-        "Descriptor length:",
-        descriptor.length
-      );
-
-
-      captureButton.disabled =
-        false;
+saveFaceDescriptor(descriptor);
 
 
     } catch (error) {
@@ -543,6 +535,139 @@ function clearMessage() {
 
   message.className =
     "message";
+
+}
+  function saveFaceDescriptor(descriptor) {
+
+  const staffId =
+    staffSelect.value;
+
+  if (!staffId) {
+
+    showMessage(
+      "Please select a staff member.",
+      "warning"
+    );
+
+    captureButton.disabled = false;
+
+    return;
+  }
+
+
+  if (
+    !Array.isArray(descriptor) ||
+    descriptor.length !== 128
+  ) {
+
+    showMessage(
+      "Invalid face descriptor.",
+      "error"
+    );
+
+    captureButton.disabled = false;
+
+    return;
+  }
+
+
+  const callbackName =
+    "faceSaveCallback_" +
+    Date.now();
+
+
+  window[callbackName] =
+    function(result) {
+
+      try {
+
+        if (result.success) {
+
+          status.textContent =
+            "Face registration completed.";
+
+          showMessage(
+            result.message ||
+            "Face registered successfully.",
+            "success"
+          );
+
+        } else {
+
+          status.textContent =
+            "Registration failed.";
+
+          showMessage(
+            result.error ||
+            "Unable to save face registration.",
+            "error"
+          );
+
+        }
+
+      } finally {
+
+        captureButton.disabled = false;
+
+        delete window[callbackName];
+
+        const script =
+          document.getElementById(
+            callbackName
+          );
+
+        if (script) {
+          script.remove();
+        }
+
+      }
+
+    };
+
+
+  const descriptorText =
+    JSON.stringify(descriptor);
+
+
+  const url =
+    APPS_SCRIPT_URL +
+    "?action=saveFace" +
+    "&staffId=" +
+    encodeURIComponent(staffId) +
+    "&descriptor=" +
+    encodeURIComponent(descriptorText) +
+    "&callback=" +
+    encodeURIComponent(callbackName);
+
+
+  const script =
+    document.createElement("script");
+
+  script.id =
+    callbackName;
+
+  script.src =
+    url;
+
+  script.onerror =
+    function() {
+
+      showMessage(
+        "Unable to connect to the attendance server.",
+        "error"
+      );
+
+      captureButton.disabled =
+        false;
+
+      delete window[callbackName];
+
+      script.remove();
+
+    };
+
+
+  document.body.appendChild(script);
 
 }
 
