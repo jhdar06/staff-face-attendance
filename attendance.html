@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>Staff Attendance</title>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+
+    body {
+
+      margin: 0;
+
+      font-family: Arial, sans-serif;
+
+      background: #f1f3f4;
+
+      color: #202124;
+
+    }
+
+
+    .container {
+
+      width: 100%;
+
+      max-width: 520px;
+
+      margin: auto;
+
+      padding: 20px;
+
+    }
+
+
+    .header {
+
+      text-align: center;
+
+      margin-bottom: 18px;
+
+    }
+
+
+    .header h1 {
+
+      margin: 0;
+
+      font-size: 27px;
+
+    }
+
+
+    .header p {
+
+      color: #666;
+
+      font-size: 14px;
+
+    }
+
+
+    .card {
+
+      background: white;
+
+      padding: 20px;
+
+      border-radius: 16px;
+
+      box-shadow:
+        0 3px 15px rgba(0,0,0,.08);
+
+    }
+
+
+    .camera {
+
+      width: 100%;
+
+      aspect-ratio: 4 / 3;
+
+      background: #111;
+
+      border-radius: 14px;
+
+      overflow: hidden;
+
+      position: relative;
+
+      display: none;
+
+    }
+
+
+    video {
+
+      width: 100%;
+
+      height: 100%;
+
+      object-fit: cover;
+
+      transform: scaleX(-1);
+
+    }
+
+
+    .guide {
+
+      position: absolute;
+
+      width: 58%;
+
+      height: 72%;
+
+      left: 50%;
+
+      top: 50%;
+
+      transform:
+        translate(-50%, -50%);
+
+      border: 3px solid white;
+
+      border-radius: 50%;
+
+      pointer-events: none;
+
+    }
+
+
+    .status {
+
+      text-align: center;
+
+      margin: 17px 0;
+
+      font-weight: bold;
+
+    }
+
+
+    button {
+
+      width: 100%;
+
+      min-height: 50px;
+
+      border: none;
+
+      border-radius: 10px;
+
+      background: #1a73e8;
+
+      color: white;
+
+      font-size: 17px;
+
+      font-weight: bold;
+
+      margin-top: 12px;
+
+      cursor: pointer;
+
+    }
+
+
+    button:disabled {
+
+      background: #aaa;
+
+      cursor: not-allowed;
+
+    }
+
+
+    .result {
+
+      display: none;
+
+      margin-top: 18px;
+
+      padding: 16px;
+
+      border-radius: 12px;
+
+      text-align: center;
+
+    }
+
+
+    .result h2 {
+
+      margin:
+        0 0 8px 0;
+
+      font-size: 21px;
+
+    }
+
+
+    .result p {
+
+      margin: 5px 0;
+
+    }
+
+
+    .success {
+
+      display: block;
+
+      background: #e6f4ea;
+
+      color: #137333;
+
+    }
+
+
+    .error {
+
+      display: block;
+
+      background: #fce8e6;
+
+      color: #b31412;
+
+    }
+
+
+    .warning {
+
+      display: block;
+
+      background: #fef7e0;
+
+      color: #8a4b00;
+
+    }
+
+
+    .info {
+
+      display: block;
+
+      background: #e8f0fe;
+
+      color: #174ea6;
+
+    }
+
+
+    .hidden {
+
+      display: none;
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+  <div class="header">
+
+    <h1>
+      Staff Attendance
+    </h1>
+
+    <p>
+      Face Authentication
+    </p>
+
+  </div>
+
+
+  <div class="card">
+
+
+    <button id="startButton">
+
+      Start Attendance
+
+    </button>
+
+
+    <div
+      id="cameraBox"
+      class="camera">
+
+      <video
+        id="video"
+        autoplay
+        muted
+        playsinline>
+      </video>
+
+      <div class="guide"></div>
+
+    </div>
+
+
+    <div
+      id="status"
+      class="status">
+
+      Ready to start.
+
+    </div>
+
+
+    <button
+      id="verifyButton"
+      disabled>
+
+      Verify Face
+
+    </button>
+
+
+    <div
+      id="result"
+      class="result">
+
+    </div>
+
+
+  </div>
+
+
+</div>
+
+
+<script>
+
+
+/* =========================================================
+   CONFIGURATION
+========================================================= */
+
+
+const APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbzT-N64qGREd32KdznpyibHANy3VwJh25k2oeQ9hwVkLyAldKzDb5mB6ZHLXzvQ-DbC8A/exec";
+
+
+const MODEL_URL =
+  "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights";
+
+
+/*
+ * IMPORTANT:
+ *
+ * face-api.js distance is lower when faces are
+ * more similar.
+ *
+ * We start with 0.50 for testing.
+ *
+ * Later we will calibrate this threshold using
+ * your actual staff faces.
+ */
+
+const MATCH_THRESHOLD = 0.50;
+
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
+
+
+const startButton =
+  document.getElementById(
+    "startButton"
+  );
+
+
+const verifyButton =
+  document.getElementById(
+    "verifyButton"
+  );
+
+
+const cameraBox =
+  document.getElementById(
+    "cameraBox"
+  );
+
+
+const video =
+  document.getElementById(
+    "video"
+  );
+
+
+const status =
+  document.getElementById(
+    "status"
+  );
+
+
+const resultBox =
+  document.getElementById(
+    "result"
+  );
+
+
+/* =========================================================
+   VARIABLES
+========================================================= */
+
+
+let cameraStream = null;
+
+let modelsLoaded = false;
+
+let registeredFaces = [];
+
+let processing = false;
+
+
+/* =========================================================
+   START ATTENDANCE
+========================================================= */
+
+
+startButton.addEventListener(
+  "click",
+  async function() {
+
+    if (processing) {
+      return;
+    }
+
+    processing = true;
+
+    startButton.disabled = true;
+
+    status.textContent =
+      "Loading face recognition...";
+
+    clearResult();
+
+
+    try {
+
+      await loadFaceModels();
+
+      status.textContent =
+        "Loading registered staff faces...";
+
+
+      await loadRegisteredFaces();
+
+
+      if (
+        registeredFaces.length === 0
+      ) {
+
+        throw new Error(
+          "No registered staff faces found."
+        );
+
+      }
+
+
+      status.textContent =
+        "Starting camera...";
+
+
+      cameraStream =
+        await navigator.mediaDevices
+          .getUserMedia({
+
+            video: {
+
+              facingMode: "user",
+
+              width: {
+                ideal: 640
+              },
+
+              height: {
+                ideal: 480
+              }
+
+            },
+
+            audio: false
+
+          });
+
+
+      video.srcObject =
+        cameraStream;
+
+
+      cameraBox.style.display =
+        "block";
+
+
+      verifyButton.disabled =
+        false;
+
+
+      status.textContent =
+        "Camera ready. Look directly at the camera.";
+
+
+      processing = false;
+
+    }
+
+    catch (error) {
+
+      console.error(error);
+
+      processing = false;
+
+      startButton.disabled =
+        false;
+
+
+      status.textContent =
+        "Unable to start attendance.";
+
+
+      showResult(
+        error.message ||
+        "Something went wrong.",
+        "error"
+      );
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   LOAD FACE MODELS
+========================================================= */
+
+
+async function loadFaceModels() {
+
+  if (modelsLoaded) {
+    return;
+  }
+
+
+  await faceapi.nets
+    .tinyFaceDetector
+    .loadFromUri(
+      MODEL_URL
+    );
+
+
+  await faceapi.nets
+    .faceLandmark68TinyNet
+    .loadFromUri(
+      MODEL_URL
+    );
+
+
+  await faceapi.nets
+    .faceRecognitionNet
+    .loadFromUri(
+      MODEL_URL
+    );
+
+
+  modelsLoaded = true;
+
+}
+
+
+/* =========================================================
+   LOAD REGISTERED FACES
+========================================================= */
+
+
+function loadRegisteredFaces() {
+
+  return new Promise(
+    function(resolve, reject) {
+
+      const callbackName =
+        "facesCallback_" +
+        Date.now();
+
+
+      window[callbackName] =
+        function(data) {
+
+          try {
+
+            if (!data.success) {
+
+              throw new Error(
+                data.error ||
+                "Unable to load registered faces."
+              );
+
+            }
+
+
+            registeredFaces =
+              data.faces || [];
+
+
+            resolve();
+
+          }
+
+          catch (error) {
+
+            reject(error);
+
+          }
+
+          finally {
+
+            delete window[
+              callbackName
+            ];
+
+
+            const script =
+              document.getElementById(
+                callbackName
+              );
+
+
+            if (script) {
+              script.remove();
+            }
+
+          }
+
+        };
+
+
+      const script =
+        document.createElement(
+          "script"
+        );
+
+
+      script.id =
+        callbackName;
+
+
+      script.src =
+        APPS_SCRIPT_URL +
+        "?action=getFaces" +
+        "&callback=" +
+        encodeURIComponent(
+          callbackName
+        );
+
+
+      script.onerror =
+        function() {
+
+          delete window[
+            callbackName
+          ];
+
+
+          script.remove();
+
+
+          reject(
+            new Error(
+              "Unable to connect to Google Sheets."
+            )
+          );
+
+        };
+
+
+      document.body.appendChild(
+        script
+      );
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   VERIFY FACE
+========================================================= */
+
+
+verifyButton.addEventListener(
+  "click",
+  async function() {
+
+    if (processing) {
+      return;
+    }
+
+
+    processing = true;
+
+    verifyButton.disabled =
+      true;
+
+
+    status.textContent =
+      "Looking for your face...";
+
+
+    clearResult();
+
+
+    try {
+
+      const detection =
+        await faceapi
+          .detectSingleFace(
+            video,
+            new faceapi
+              .TinyFaceDetectorOptions({
+
+                inputSize: 320,
+
+                scoreThreshold: 0.5
+
+              })
+          )
+          .withFaceLandmarks(
+            true
+          )
+          .withFaceDescriptor();
+
+
+      if (!detection) {
+
+        throw new Error(
+          "No face detected. Please look directly at the camera."
+        );
+
+      }
+
+
+      const liveDescriptor =
+        Array.from(
+          detection.descriptor
+        );
+
+
+      /*
+       * Compare against every registered
+       * staff member.
+       */
+
+      let bestMatch = null;
+
+      let bestDistance =
+        Infinity;
+
+
+      registeredFaces.forEach(
+        function(person) {
+
+          const distance =
+            faceapi.euclideanDistance(
+              liveDescriptor,
+              person.descriptor
+            );
+
+
+          console.log(
+            person.staffName,
+            "distance:",
+            distance
+          );
+
+
+          if (
+            distance < bestDistance
+          ) {
+
+            bestDistance =
+              distance;
+
+            bestMatch =
+              person;
+
+          }
+
+        }
+      );
+
+
+      console.log(
+        "Best match:",
+        bestMatch
+      );
+
+
+      console.log(
+        "Best distance:",
+        bestDistance
+      );
+
+
+      if (
+        !bestMatch ||
+        bestDistance > MATCH_THRESHOLD
+      ) {
+
+        showResult(
+          "Face not recognized.",
+          "error"
+        );
+
+
+        status.textContent =
+          "Verification failed.";
+
+
+        processing = false;
+
+        verifyButton.disabled =
+          false;
+
+
+        return;
+
+      }
+
+
+      /*
+       * Successful face match.
+       */
+
+      status.textContent =
+        "Face verified. Recording attendance...";
+
+
+      showResult(
+        "Face recognized: " +
+        bestMatch.staffName,
+        "info"
+      );
+
+
+      markAttendance(
+        bestMatch,
+        bestDistance
+      );
+
+    }
+
+    catch (error) {
+
+      console.error(error);
+
+
+      status.textContent =
+        "Verification failed.";
+
+
+      showResult(
+        error.message ||
+        "Unable to verify face.",
+        "error"
+      );
+
+
+      processing = false;
+
+      verifyButton.disabled =
+        false;
+
+    }
+
+  }
+);
+
+
+/* =========================================================
+   SEND ATTENDANCE TO APPS SCRIPT
+========================================================= */
+
+
+function markAttendance(
+  person,
+  distance
+) {
+
+  const callbackName =
+    "attendanceCallback_" +
+    Date.now();
+
+
+  window[callbackName] =
+    function(data) {
+
+      try {
+
+        if (
+          data.success
+        ) {
+
+          status.textContent =
+            "Attendance recorded.";
+
+
+          showResult(
+
+            "<h2>Attendance Marked</h2>" +
+
+            "<p><strong>" +
+            person.staffName +
+            "</strong></p>" +
+
+            "<p>Date: " +
+            data.date +
+            "</p>" +
+
+            "<p>Time: " +
+            data.time +
+            "</p>" +
+
+            "<p>Face distance: " +
+            Number(distance).toFixed(3) +
+            "</p>",
+
+            "success"
+
+          );
+
+
+          stopCamera();
+
+
+        }
+
+        else {
+
+          if (
+            data.duplicate
+          ) {
+
+            status.textContent =
+              "Attendance already marked.";
+
+
+            showResult(
+
+              "<h2>Already Marked</h2>" +
+
+              "<p>" +
+              data.message +
+              "</p>" +
+
+              "<p>Time: " +
+              data.time +
+              "</p>",
+
+              "warning"
+
+            );
+
+          }
+
+          else {
+
+            showResult(
+              data.error ||
+              "Attendance could not be recorded.",
+              "error"
+            );
+
+          }
+
+        }
+
+      }
+
+      finally {
+
+        processing = false;
+
+
+        delete window[
+          callbackName
+        ];
+
+
+        const script =
+          document.getElementById(
+            callbackName
+          );
+
+
+        if (script) {
+          script.remove();
+        }
+
+      }
+
+    };
+
+
+  const device =
+    getDevice();
+
+
+  const url =
+    APPS_SCRIPT_URL +
+
+    "?action=faceAttendance" +
+
+    "&staffId=" +
+    encodeURIComponent(
+      person.staffId
+    ) +
+
+    "&verification=" +
+    encodeURIComponent(
+      "FACE_MATCH_" +
+      Number(distance).toFixed(4)
+    ) +
+
+    "&device=" +
+    encodeURIComponent(
+      device
+    ) +
+
+    "&callback=" +
+    encodeURIComponent(
+      callbackName
+    );
+
+
+  const script =
+    document.createElement(
+      "script"
+    );
+
+
+  script.id =
+    callbackName;
+
+
+  script.src =
+    url;
+
+
+  script.onerror =
+    function() {
+
+      processing = false;
+
+      verifyButton.disabled =
+        false;
+
+
+      showResult(
+        "Unable to connect to attendance server.",
+        "error"
+      );
+
+
+      delete window[
+        callbackName
+      ];
+
+
+      script.remove();
+
+    };
+
+
+  document.body.appendChild(
+    script
+  );
+
+}
+
+
+/* =========================================================
+   STOP CAMERA
+========================================================= */
+
+
+function stopCamera() {
+
+  if (cameraStream) {
+
+    cameraStream
+      .getTracks()
+      .forEach(
+        function(track) {
+
+          track.stop();
+
+        }
+      );
+
+
+    cameraStream =
+      null;
+
+  }
+
+
+  video.srcObject =
+    null;
+
+
+  cameraBox.style.display =
+    "none";
+
+
+  verifyButton.disabled =
+    true;
+
+
+  startButton.disabled =
+    false;
+
+}
+
+
+/* =========================================================
+   DEVICE
+========================================================= */
+
+
+function getDevice() {
+
+  const ua =
+    navigator.userAgent;
+
+
+  if (/Android/i.test(ua))
+    return "Android";
+
+
+  if (/iPhone|iPad|iPod/i.test(ua))
+    return "iPhone/iPad";
+
+
+  if (/Windows/i.test(ua))
+    return "Windows";
+
+
+  if (/Mac/i.test(ua))
+    return "Mac";
+
+
+  return "Other";
+
+}
+
+
+/* =========================================================
+   RESULT DISPLAY
+========================================================= */
+
+
+function showResult(
+  html,
+  type
+) {
+
+  resultBox.innerHTML =
+    html;
+
+
+  resultBox.className =
+    "result " + type;
+
+}
+
+
+function clearResult() {
+
+  resultBox.innerHTML =
+    "";
+
+
+  resultBox.className =
+    "result";
+
+}
+
+</script>
+
+</body>
+
+</html>
