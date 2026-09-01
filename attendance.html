@@ -362,6 +362,25 @@ let blinkClosed = false;
 
 let livenessTimer = null;
 
+/*
+ * Prevent multiple face-detection operations
+ * from running simultaneously.
+ */
+let livenessBusy = false;
+
+/*
+ * Dynamic eye baseline.
+ */
+let eyeBaseline = null;
+
+let eyeSamples = 0;
+
+/*
+ * Prevent the blink stage from starting
+ * before we have enough eye measurements.
+ */
+let blinkReady = false;
+
 
 /* =========================================================
    START ATTENDANCE
@@ -660,6 +679,13 @@ false;
 
 blinkClosed =
 false;
+      livenessBusy = false;
+
+eyeBaseline = null;
+
+eyeSamples = 0;
+
+blinkReady = false;
 
 
 status.textContent =
@@ -683,7 +709,7 @@ livenessTimer
 livenessTimer =
 setInterval(
 checkLivenessFrame,
-100
+120
 );
 
 }
@@ -696,9 +722,19 @@ checkLivenessFrame,
 async function checkLivenessFrame() {
 
 if (!running || processing) {
-return;
+  return;
 }
 
+/*
+ * IMPORTANT:
+ * Do not start another face detection while
+ * the previous one is still processing.
+ */
+if (livenessBusy) {
+  return;
+}
+
+livenessBusy = true;
 
 try {
 
@@ -891,57 +927,118 @@ return;
 ===================================================== */
 
 if (
-livenessStage === "BLINK"
+  livenessStage === "BLINK"
 ) {
 
+  /*
+   * First collect a few normal eye-open
+   * measurements for this particular person.
+   */
+  if (!blinkReady) {
 
-/*
- * Eye Aspect Ratio.
- *
- * Lower value = eye closed.
- */
+    if (eyeBaseline === null) {
 
-if (
-ear < 0.23
-) {
+      eyeBaseline = ear;
 
-blinkClosed =
-true;
+    } else {
 
-}
+      eyeBaseline =
+        (
+          eyeBaseline * 0.8
+        ) +
+        (
+          ear * 0.2
+        );
 
+    }
 
-if (
-blinkClosed &&
-ear > 0.25
-) {
+    eyeSamples++;
 
-blinkDetected =
-true;
+    if (eyeSamples >= 5) {
 
-livenessStage =
-"VERIFY";
+      blinkReady = true;
 
-status.textContent =
-"Liveness verified.";
+      status.textContent =
+        "Eyes ready.";
 
-instruction.textContent =
-"Verifying your face...";
+      instruction.textContent =
+        "Blink once.";
 
-setProgress(85);
+    }
 
-
-clearInterval(
-livenessTimer
-);
+    return;
+  }
 
 
-setTimeout(
-verifyFace,
-300
-);
+  /*
+   * Dynamic blink detection.
+   *
+   * Instead of requiring every person to have
+   * the same absolute EAR value, compare the
+   * current eye opening with their own baseline.
+   */
 
-}
+  const closeThreshold =
+    eyeBaseline * 0.70;
+
+  const openThreshold =
+    eyeBaseline * 0.88;
+
+
+  /*
+   * Eyes have closed significantly.
+   */
+  if (
+    ear < closeThreshold
+  ) {
+
+    blinkClosed = true;
+
+    return;
+
+  }
+
+
+  /*
+   * Eyes opened again after closing.
+   */
+  if (
+    blinkClosed &&
+    ear > openThreshold
+  ) {
+
+    blinkDetected = true;
+
+    livenessStage =
+      "VERIFY";
+
+
+    status.textContent =
+      "Liveness verified.";
+
+    instruction.textContent =
+      "Verifying your face...";
+
+    setProgress(85);
+
+
+    if (livenessTimer) {
+
+      clearInterval(
+        livenessTimer
+      );
+
+      livenessTimer = null;
+
+    }
+
+
+    setTimeout(
+      verifyFace,
+      150
+    );
+
+  }
 
 }
 
@@ -949,10 +1046,15 @@ verifyFace,
 
 catch(error) {
 
-console.error(
-"liveness:",
-error
-);
+  console.error(
+    "liveness:",
+    error
+  );
+
+}
+finally {
+
+  livenessBusy = false;
 
 }
 
