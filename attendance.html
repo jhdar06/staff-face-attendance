@@ -683,7 +683,7 @@ livenessTimer
 livenessTimer =
 setInterval(
 checkLivenessFrame,
-250
+100
 );
 
 }
@@ -902,7 +902,7 @@ livenessStage === "BLINK"
  */
 
 if (
-ear < 0.20
+ear < 0.23
 ) {
 
 blinkClosed =
@@ -913,7 +913,7 @@ true;
 
 if (
 blinkClosed &&
-ear > 0.24
+ear > 0.25
 ) {
 
 blinkDetected =
