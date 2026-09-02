@@ -15,172 +15,178 @@
 <style>
 
 * {
-  box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #eef3f5;
-  color: #202124;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #eef3f5;
+    color: #202124;
 }
 
 .container {
-  width: 100%;
-  max-width: 520px;
-  margin: auto;
-  padding: 18px;
+    width: 100%;
+    max-width: 520px;
+    margin: auto;
+    padding: 18px;
 }
 
 .header {
-  text-align: center;
-  margin-bottom: 16px;
+    text-align: center;
+    margin-bottom: 16px;
 }
 
 .header h1 {
-  margin: 0;
-  font-size: 27px;
+    margin: 0;
+    font-size: 27px;
 }
 
 .header p {
-  margin-top: 7px;
-  color: #666;
-  font-size: 14px;
+    margin-top: 7px;
+    color: #666;
+    font-size: 14px;
 }
 
 .card {
-  background: white;
-  border-radius: 18px;
-  padding: 18px;
-  box-shadow: 0 4px 18px rgba(0,0,0,.08);
+    background: white;
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: 0 4px 18px rgba(0,0,0,.08);
 }
 
 .camera {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  background: #111;
-  border-radius: 15px;
-  overflow: hidden;
-  position: relative;
-  display: none;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: #111;
+    border-radius: 15px;
+    overflow: hidden;
+    position: relative;
+    display: none;
 }
 
 video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scaleX(-1);
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
 }
 
 .guide {
-  position: absolute;
-  width: 58%;
-  height: 72%;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  border: 3px solid white;
-  border-radius: 50%;
-  pointer-events: none;
+    position: absolute;
+    width: 58%;
+    height: 72%;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    border: 3px solid white;
+    border-radius: 50%;
+    pointer-events: none;
 }
 
 .status {
-  text-align: center;
-  font-weight: bold;
-  font-size: 17px;
-  margin: 16px 0 7px;
-  min-height: 24px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 17px;
+    margin: 16px 0 7px;
+    min-height: 25px;
 }
 
 .instruction {
-  text-align: center;
-  font-size: 15px;
-  min-height: 22px;
-  color: #555;
-  margin-bottom: 10px;
+    text-align: center;
+    font-size: 15px;
+    min-height: 44px;
+    color: #555;
+    margin-bottom: 10px;
+    line-height: 1.45;
 }
 
 .progress {
-  height: 8px;
-  background: #ddd;
-  border-radius: 20px;
-  overflow: hidden;
-  margin: 12px 0 18px;
+    height: 8px;
+    background: #ddd;
+    border-radius: 20px;
+    overflow: hidden;
+    margin: 12px 0 18px;
 }
 
 .progressBar {
-  height: 100%;
-  width: 0%;
-  background: #1a73e8;
-  transition: width .25s;
+    height: 100%;
+    width: 0%;
+    background: #1a73e8;
+    transition: width .25s;
 }
 
 button {
-  width: 100%;
-  min-height: 52px;
-  border: none;
-  border-radius: 11px;
-  background: #1a73e8;
-  color: white;
-  font-size: 17px;
-  font-weight: bold;
-  cursor: pointer;
-  margin-top: 10px;
+    width: 100%;
+    min-height: 52px;
+    border: none;
+    border-radius: 11px;
+    background: #1a73e8;
+    color: white;
+    font-size: 17px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
 }
 
 button:disabled {
-  background: #aaa;
-  cursor: not-allowed;
+    background: #aaa;
+    cursor: not-allowed;
+}
+
+.retryButton {
+    background: #5f6368;
+    display: none;
 }
 
 .result {
-  display: none;
-  margin-top: 17px;
-  padding: 17px;
-  border-radius: 13px;
-  text-align: center;
+    display: none;
+    margin-top: 17px;
+    padding: 17px;
+    border-radius: 13px;
+    text-align: center;
 }
 
 .result h2 {
-  margin: 0 0 8px;
-  font-size: 21px;
+    margin: 0 0 8px;
+    font-size: 21px;
 }
 
 .result p {
-  margin: 6px 0;
-  font-size: 15px;
+    margin: 6px 0;
+    font-size: 15px;
 }
 
 .success {
-  display: block;
-  background: #e6f4ea;
-  color: #137333;
+    display: block;
+    background: #e6f4ea;
+    color: #137333;
 }
 
 .error {
-  display: block;
-  background: #fce8e6;
-  color: #b31412;
+    display: block;
+    background: #fce8e6;
+    color: #b31412;
 }
 
 .warning {
-  display: block;
-  background: #fef7e0;
-  color: #8a4b00;
+    display: block;
+    background: #fef7e0;
+    color: #8a4b00;
 }
 
 .info {
-  display: block;
-  background: #e8f0fe;
-  color: #174ea6;
+    display: block;
+    background: #e8f0fe;
+    color: #174ea6;
 }
 
 .small {
-  font-size: 12px;
-  color: #777;
-  text-align: center;
-  margin-top: 14px;
-  line-height: 1.5;
+    font-size: 12px;
+    color: #777;
+    text-align: center;
+    margin-top: 14px;
+    line-height: 1.5;
 }
 
 </style>
@@ -196,13 +202,9 @@ button:disabled {
 
 <div class="header">
 
-<h1>
-Staff Attendance
-</h1>
+<h1>Staff Attendance</h1>
 
-<p>
-Face Authentication
-</p>
+<p>Face Authentication</p>
 
 </div>
 
@@ -211,9 +213,7 @@ Face Authentication
 
 
 <button id="startButton">
-
 Start Attendance
-
 </button>
 
 
@@ -256,6 +256,14 @@ Tap Start Attendance.
 </div>
 
 
+<button id="retryButton"
+        class="retryButton">
+
+Try Again
+
+</button>
+
+
 <div id="result"
      class="result">
 </div>
@@ -263,8 +271,8 @@ Tap Start Attendance.
 
 <div class="small">
 
-Your face is processed in the browser.
-Only the verified attendance result is sent to the attendance server.
+Face recognition is performed in the browser.
+The attendance result is sent to the attendance server.
 
 </div>
 
@@ -290,11 +298,11 @@ const MODEL_URL =
 
 
 /*
- * Face-api.js Euclidean distance.
+ * Face recognition threshold.
  *
- * Smaller = better match.
+ * Lower number = stricter match.
  *
- * We will calibrate this after testing
+ * We will calibrate this later after testing
  * several staff members.
  */
 
@@ -302,13 +310,27 @@ const MATCH_THRESHOLD = 0.50;
 
 
 /*
- * Liveness timeout.
- *
- * The system will never remain stuck
- * indefinitely in one stage.
+ * Maximum time allowed for liveness.
  */
 
-const LIVENESS_TIMEOUT = 15000;
+const LIVENESS_TIMEOUT = 25000;
+
+
+/*
+ * Face detector settings.
+ *
+ * 0.35 is intentionally tolerant for mobile
+ * cameras.
+ */
+
+const DETECTOR_OPTIONS =
+new faceapi.TinyFaceDetectorOptions({
+
+    inputSize: 320,
+
+    scoreThreshold: 0.35
+
+});
 
 
 /* =========================================================
@@ -317,43 +339,49 @@ const LIVENESS_TIMEOUT = 15000;
 
 const startButton =
 document.getElementById(
-  "startButton"
+    "startButton"
+);
+
+
+const retryButton =
+document.getElementById(
+    "retryButton"
 );
 
 
 const cameraBox =
 document.getElementById(
-  "cameraBox"
+    "cameraBox"
 );
 
 
 const video =
 document.getElementById(
-  "video"
+    "video"
 );
 
 
 const status =
 document.getElementById(
-  "status"
+    "status"
 );
 
 
 const instruction =
 document.getElementById(
-  "instruction"
-);
-
-
-const resultBox =
-document.getElementById(
-  "result"
+    "instruction"
 );
 
 
 const progressBar =
 document.getElementById(
-  "progressBar"
+    "progressBar"
+);
+
+
+const resultBox =
+document.getElementById(
+    "result"
 );
 
 
@@ -382,11 +410,11 @@ false;
 
 
 /*
- * Liveness state.
+ * Liveness.
  */
 
 let livenessStage =
-"WAITING";
+"IDLE";
 
 
 let livenessTimer =
@@ -397,28 +425,31 @@ let livenessTimeoutTimer =
 null;
 
 
+let detectionBusy =
+false;
+
+
 /*
- * Prevent overlapping face-api
- * detection calls.
+ * Face position baseline.
  */
 
-let livenessBusy =
-false;
+let baselineX =
+null;
+
+
+let baselineFaceWidth =
+null;
+
+
+let baselineFrames =
+0;
 
 
 /*
  * Head movement.
  */
 
-let baselineYaw =
-null;
-
-
 let headMoved =
-false;
-
-
-let returnedToCenter =
 false;
 
 
@@ -442,37 +473,61 @@ let blinkClosed =
 false;
 
 
-/*
- * Frame counters.
- */
+/* =========================================================
+   START BUTTON
+========================================================= */
 
-let baselineFrames =
-0;
+startButton.addEventListener(
+    "click",
+    startAttendance
+);
+
+
+/* =========================================================
+   RETRY BUTTON
+========================================================= */
+
+retryButton.addEventListener(
+    "click",
+    function() {
+
+        clearResult();
+
+        retryButton.style.display =
+            "none";
+
+        startLiveness();
+
+    }
+);
 
 
 /* =========================================================
    START ATTENDANCE
 ========================================================= */
 
-startButton.addEventListener(
-  "click",
-  async function() {
+async function startAttendance() {
+
 
     if (running) {
-      return;
+        return;
     }
 
 
     running =
-      true;
+        true;
 
 
     processing =
-      true;
+        true;
 
 
     startButton.disabled =
-      true;
+        true;
+
+
+    retryButton.style.display =
+        "none";
 
 
     clearResult();
@@ -482,180 +537,255 @@ startButton.addEventListener(
 
 
     status.textContent =
-      "Preparing face recognition...";
+        "Preparing face recognition...";
 
 
     instruction.textContent =
-      "Please wait.";
+        "Please wait.";
 
 
     try {
 
 
-      /*
-       * Load face models.
-       */
+        /*
+         * Load models.
+         */
 
-      await loadFaceModels();
-
-
-      /*
-       * Load registered faces.
-       */
-
-      status.textContent =
-        "Loading registered staff...";
+        await loadFaceModels();
 
 
-      instruction.textContent =
-        "Please wait.";
+        /*
+         * Load registered faces.
+         */
+
+        status.textContent =
+            "Loading registered staff...";
 
 
-      await loadRegisteredFaces();
+        instruction.textContent =
+            "Please wait.";
 
 
-      if (
-        registeredFaces.length === 0
-      ) {
-
-        throw new Error(
-          "No registered staff faces were found."
-        );
-
-      }
+        await loadRegisteredFaces();
 
 
-      /*
-       * Start camera.
-       */
+        if (
+            registeredFaces.length === 0
+        ) {
 
-      status.textContent =
-        "Starting camera...";
+            throw new Error(
+                "No registered staff faces were found."
+            );
 
-
-      cameraStream =
-        await navigator.mediaDevices
-          .getUserMedia({
-
-            video: {
-
-              facingMode: "user",
-
-              width: {
-                ideal: 640
-              },
-
-              height: {
-                ideal: 480
-              }
-
-            },
-
-            audio: false
-
-          });
+        }
 
 
-      video.srcObject =
-        cameraStream;
+        /*
+         * Start camera.
+         */
+
+        status.textContent =
+            "Starting camera...";
 
 
-      cameraBox.style.display =
-        "block";
+        cameraStream =
+            await navigator.mediaDevices
+                .getUserMedia({
+
+                    video: {
+
+                        facingMode: "user",
+
+                        width: {
+                            ideal: 640
+                        },
+
+                        height: {
+                            ideal: 480
+                        }
+
+                    },
+
+                    audio: false
+
+                });
 
 
-      processing =
-        false;
+        video.srcObject =
+            cameraStream;
 
 
-      startLiveness();
+        cameraBox.style.display =
+            "block";
+
+
+        /*
+         * Wait until video actually has
+         * dimensions.
+         */
+
+        await waitForVideo();
+
+
+        processing =
+            false;
+
+
+        startLiveness();
 
 
     }
 
     catch (error) {
 
-      console.error(error);
+
+        console.error(error);
 
 
-      running =
-        false;
+        running =
+            false;
 
 
-      processing =
-        false;
+        processing =
+            false;
 
 
-      startButton.disabled =
-        false;
+        startButton.disabled =
+            false;
 
 
-      status.textContent =
-        "Unable to start.";
+        status.textContent =
+            "Unable to start.";
 
 
-      instruction.textContent =
-        "";
+        instruction.textContent =
+            "";
 
 
-      showResult(
-        error.message ||
-        "Unable to start attendance.",
-        "error"
-      );
+        showResult(
+            error.message ||
+            "Unable to start attendance.",
+            "error"
+        );
 
     }
 
-  }
-);
+}
 
 
 /* =========================================================
-   LOAD FACE MODELS
+   LOAD MODELS
 ========================================================= */
 
 async function loadFaceModels() {
 
-  if (modelsLoaded) {
-    return;
-  }
+
+    if (modelsLoaded) {
+        return;
+    }
 
 
-  status.textContent =
-    "Loading face detector...";
+    status.textContent =
+        "Loading face detector...";
 
 
-  await faceapi.nets
-    .tinyFaceDetector
-    .loadFromUri(
-      MODEL_URL
+    await faceapi.nets
+        .tinyFaceDetector
+        .loadFromUri(
+            MODEL_URL
+        );
+
+
+    status.textContent =
+        "Loading face landmarks...";
+
+
+    await faceapi.nets
+        .faceLandmark68TinyNet
+        .loadFromUri(
+            MODEL_URL
+        );
+
+
+    status.textContent =
+        "Loading face recognition...";
+
+
+    await faceapi.nets
+        .faceRecognitionNet
+        .loadFromUri(
+            MODEL_URL
+        );
+
+
+    modelsLoaded =
+        true;
+
+}
+
+
+/* =========================================================
+   WAIT FOR VIDEO
+========================================================= */
+
+function waitForVideo() {
+
+
+    return new Promise(
+        function(resolve) {
+
+
+            let attempts =
+                0;
+
+
+            const timer =
+                setInterval(
+                    function() {
+
+
+                        attempts++;
+
+
+                        if (
+                            video.readyState >= 2 &&
+                            video.videoWidth > 0 &&
+                            video.videoHeight > 0
+                        ) {
+
+                            clearInterval(
+                                timer
+                            );
+
+
+                            resolve();
+
+                        }
+
+
+                        /*
+                         * Don't wait forever.
+                         */
+
+                        if (
+                            attempts > 50
+                        ) {
+
+                            clearInterval(
+                                timer
+                            );
+
+
+                            resolve();
+
+                        }
+
+                    },
+                    100
+                );
+
+        }
     );
-
-
-  status.textContent =
-    "Loading face landmarks...";
-
-
-  await faceapi.nets
-    .faceLandmark68TinyNet
-    .loadFromUri(
-      MODEL_URL
-    );
-
-
-  status.textContent =
-    "Loading face recognition...";
-
-
-  await faceapi.nets
-    .faceRecognitionNet
-    .loadFromUri(
-      MODEL_URL
-    );
-
-
-  modelsLoaded =
-    true;
 
 }
 
@@ -666,134 +796,165 @@ async function loadFaceModels() {
 
 function loadRegisteredFaces() {
 
-  return new Promise(
-    function(resolve, reject) {
+
+    return new Promise(
+        function(resolve, reject) {
 
 
-      const callbackName =
-        "faces_" +
-        Date.now();
+            const callbackName =
+                "faces_" +
+                Date.now();
 
 
-      window[callbackName] =
-        function(data) {
-
-          try {
+            window[callbackName] =
+                function(data) {
 
 
-            if (!data.success) {
-
-              throw new Error(
-                data.error ||
-                "Unable to load registered faces."
-              );
-
-            }
+                    try {
 
 
-            registeredFaces =
-              data.faces || [];
+                        if (
+                            !data.success
+                        ) {
+
+                            throw new Error(
+                                data.error ||
+                                "Unable to load registered faces."
+                            );
+
+                        }
 
 
-            /*
-             * Validate templates.
-             */
-
-            registeredFaces =
-              registeredFaces.filter(
-                function(person) {
-
-                  return (
-                    person &&
-                    person.staffId &&
-                    person.staffName &&
-                    Array.isArray(
-                      person.samples
-                    ) &&
-                    person.samples.length > 0
-                  );
-
-                }
-              );
+                        registeredFaces =
+                            data.faces || [];
 
 
-            resolve();
+                        /*
+                         * Only accept valid multi-sample
+                         * templates.
+                         */
 
-          }
+                        registeredFaces =
+                            registeredFaces.filter(
+                                function(person) {
 
-          catch (error) {
 
-            reject(error);
+                                    if (
+                                        !person ||
+                                        !person.staffId ||
+                                        !person.staffName
+                                    ) {
 
-          }
+                                        return false;
 
-          finally {
+                                    }
 
-            delete window[
-              callbackName
-            ];
+
+                                    if (
+                                        !Array.isArray(
+                                            person.samples
+                                        )
+                                    ) {
+
+                                        return false;
+
+                                    }
+
+
+                                    return person.samples.some(
+                                        function(sample) {
+
+                                            return (
+                                                Array.isArray(sample) &&
+                                                sample.length === 128
+                                            );
+
+                                        }
+                                    );
+
+                                }
+                            );
+
+
+                        resolve();
+
+                    }
+
+                    catch (error) {
+
+                        reject(error);
+
+                    }
+
+                    finally {
+
+
+                        delete window[
+                            callbackName
+                        ];
+
+
+                        const script =
+                            document.getElementById(
+                                callbackName
+                            );
+
+
+                        if (script) {
+                            script.remove();
+                        }
+
+                    }
+
+                };
 
 
             const script =
-              document.getElementById(
-                callbackName
-              );
+                document.createElement(
+                    "script"
+                );
 
 
-            if (script) {
-              script.remove();
-            }
-
-          }
-
-        };
+            script.id =
+                callbackName;
 
 
-      const script =
-        document.createElement(
-          "script"
-        );
+            script.src =
+                APPS_SCRIPT_URL +
+                "?action=getFaces" +
+                "&callback=" +
+                encodeURIComponent(
+                    callbackName
+                );
 
 
-      script.id =
-        callbackName;
+            script.onerror =
+                function() {
 
 
-      script.src =
-        APPS_SCRIPT_URL +
-        "?action=getFaces" +
-        "&callback=" +
-        encodeURIComponent(
-          callbackName
-        );
+                    delete window[
+                        callbackName
+                    ];
 
 
-      script.onerror =
-        function() {
-
-          delete window[
-            callbackName
-          ];
+                    script.remove();
 
 
-          script.remove();
+                    reject(
+                        new Error(
+                            "Unable to connect to Google Sheets."
+                        )
+                    );
+
+                };
 
 
-          reject(
-            new Error(
-              "Unable to connect to Google Sheets."
-            )
-          );
+            document.body.appendChild(
+                script
+            );
 
-        };
-
-
-      document.body.appendChild(
-        script
-      );
-
-    }
-  );
+        }
+    );
 
 }
 
@@ -805,80 +966,100 @@ function loadRegisteredFaces() {
 function startLiveness() {
 
 
-  livenessStage =
-    "BASELINE";
+    /*
+     * Clear previous timers.
+     */
+
+    stopLivenessTimers();
 
 
-  baselineYaw =
-    null;
+    /*
+     * Reset everything.
+     */
+
+    livenessStage =
+        "BASELINE";
 
 
-  baselineFrames =
-    0;
+    baselineX =
+        null;
 
 
-  headMoved =
-    false;
+    baselineFaceWidth =
+        null;
 
 
-  returnedToCenter =
-    false;
+    baselineFrames =
+        0;
 
 
-  eyeBaseline =
-    null;
+    headMoved =
+        false;
 
 
-  eyeSamples =
-    0;
+    eyeBaseline =
+        null;
 
 
-  blinkReady =
-    false;
+    eyeSamples =
+        0;
 
 
-  blinkClosed =
-    false;
+    blinkReady =
+        false;
 
 
-  livenessBusy =
-    false;
+    blinkClosed =
+        false;
 
 
-  status.textContent =
-    "Looking for your face...";
+    detectionBusy =
+        false;
 
 
-  instruction.textContent =
-    "Look straight at the camera.";
+    running =
+        true;
 
 
-  setProgress(5);
+    processing =
+        false;
 
 
-  /*
-   * Run detection every 180 ms.
-   *
-   * The busy flag prevents overlapping
-   * detections.
-   */
-
-  livenessTimer =
-    setInterval(
-      checkLivenessFrame,
-      180
-    );
+    retryButton.style.display =
+        "none";
 
 
-  /*
-   * Overall timeout.
-   */
+    status.textContent =
+        "Looking for your face...";
 
-  livenessTimeoutTimer =
-    setTimeout(
-      livenessFailed,
-      LIVENESS_TIMEOUT
-    );
+
+    instruction.textContent =
+        "Position your face inside the oval.";
+
+
+    setProgress(5);
+
+
+    /*
+     * Start sequential detection loop.
+     */
+
+    livenessTimer =
+        setInterval(
+            checkLivenessFrame,
+            250
+        );
+
+
+    /*
+     * Give the user 25 seconds.
+     */
+
+    livenessTimeoutTimer =
+        setTimeout(
+            livenessFailed,
+            LIVENESS_TIMEOUT
+        );
 
 }
 
@@ -890,499 +1071,562 @@ function startLiveness() {
 async function checkLivenessFrame() {
 
 
-  if (
-    !running ||
-    processing ||
-    livenessBusy
-  ) {
-
-    return;
-
-  }
-
-
-  livenessBusy =
-    true;
-
-
-  try {
-
-
-    const detection =
-      await faceapi
-        .detectSingleFace(
-
-          video,
-
-          new faceapi
-            .TinyFaceDetectorOptions({
-
-              inputSize: 320,
-
-              scoreThreshold: 0.40
-
-            })
-
-        )
-        .withFaceLandmarks(
-          true
-        );
-
-
-    /*
-     * No face.
-     */
-
-    if (!detection) {
-
-      status.textContent =
-        "Looking for your face...";
-
-
-      instruction.textContent =
-        "Position your face inside the oval.";
-
-
-      return;
-
-    }
-
-
-    const landmarks =
-      detection.landmarks;
-
-
-    const yaw =
-      calculateYaw(
-        landmarks
-      );
-
-
-    const ear =
-      calculateEAR(
-        landmarks
-      );
-
-
-    /* =====================================================
-       STAGE 1 — FACE BASELINE
-    ===================================================== */
-
     if (
-      livenessStage ===
-      "BASELINE"
+        !running ||
+        processing ||
+        detectionBusy
     ) {
-
-
-      baselineFrames++;
-
-
-      if (
-        baselineYaw === null
-      ) {
-
-        baselineYaw =
-          yaw;
-
-      }
-
-
-      /*
-       * Allow small natural camera
-       * variation.
-       */
-
-      if (
-        baselineFrames < 5
-      ) {
-
-        status.textContent =
-          "Face detected.";
-
-
-        instruction.textContent =
-          "Keep looking straight for a moment.";
-
-
-        setProgress(15);
-
 
         return;
 
-      }
-
-
-      /*
-       * Baseline established.
-       *
-       * We intentionally do NOT require
-       * a very precise yaw value here.
-       */
-
-      livenessStage =
-        "TURN";
-
-
-      status.textContent =
-        "Face detected.";
-
-
-      instruction.textContent =
-        "Turn your head slightly left or right.";
-
-
-      setProgress(30);
-
-
-      return;
-
     }
 
 
-    /* =====================================================
-       STAGE 2 — HEAD MOVEMENT
-    ===================================================== */
-
-    if (
-      livenessStage ===
-      "TURN"
-    ) {
+    detectionBusy =
+        true;
 
 
-      const movement =
-        Math.abs(
-          yaw -
-          baselineYaw
-        );
-
-
-      /*
-       * Relatively tolerant movement.
-       */
-
-      if (
-        movement > 0.10
-      ) {
-
-        headMoved =
-          true;
-
-
-        livenessStage =
-          "RETURN";
-
-
-        status.textContent =
-          "Good.";
-
-
-        instruction.textContent =
-          "Now look straight at the camera.";
-
-
-        setProgress(50);
-
-      }
-
-
-      return;
-
-    }
-
-
-    /* =====================================================
-       STAGE 3 — RETURN TO CENTER
-    ===================================================== */
-
-    if (
-      livenessStage ===
-      "RETURN"
-    ) {
-
-
-      const movement =
-        Math.abs(
-          yaw -
-          baselineYaw
-        );
-
-
-      if (
-        movement < 0.15
-      ) {
-
-        returnedToCenter =
-          true;
-
-
-        livenessStage =
-          "BLINK";
+    try {
 
 
         /*
-         * Reset eye measurements.
+         * Detect the face.
+         *
+         * We intentionally do NOT require
+         * landmarks for the initial detection.
          */
 
-        eyeBaseline =
-          null;
+        const detection =
+            await faceapi
+                .detectSingleFace(
+                    video,
+                    DETECTOR_OPTIONS
+                )
+                .withFaceLandmarks(true);
 
 
-        eyeSamples =
-          0;
+        /*
+         * No face.
+         */
+
+        if (!detection) {
 
 
-        blinkReady =
-          false;
+            if (
+                livenessStage ===
+                "BASELINE"
+            ) {
+
+                status.textContent =
+                    "Looking for your face...";
+
+                instruction.textContent =
+                    "Position your face inside the oval.";
+
+            }
 
 
-        blinkClosed =
-          false;
-
-
-        status.textContent =
-          "Good.";
-
-
-        instruction.textContent =
-          "Close and open your eyes once.";
-
-
-        setProgress(65);
-
-      }
-
-
-      return;
-
-    }
-
-
-    /* =====================================================
-       STAGE 4 — BLINK
-    ===================================================== */
-
-    if (
-      livenessStage ===
-      "BLINK"
-    ) {
-
-
-      /*
-       * Establish the person's normal
-       * eye opening.
-       */
-
-      if (
-        !blinkReady
-      ) {
-
-
-        if (
-          eyeBaseline === null
-        ) {
-
-          eyeBaseline =
-            ear;
+            return;
 
         }
 
-        else {
 
-          eyeBaseline =
+        const box =
+            detection.detection.box;
+
+
+        const landmarks =
+            detection.landmarks;
+
+
+        /*
+         * Face centre and size.
+         */
+
+        const faceCenterX =
+            box.x +
             (
-              eyeBaseline *
-              0.75
-            ) +
-            (
-              ear *
-              0.25
+                box.width / 2
             );
 
-        }
+
+        const normalizedX =
+            faceCenterX /
+            video.videoWidth;
 
 
-        eyeSamples++;
+        const faceWidth =
+            box.width /
+            video.videoWidth;
 
 
-        status.textContent =
-          "Eyes detected.";
-
-
-        instruction.textContent =
-          "Close and open your eyes once.";
-
+        /* =================================================
+           STAGE 1
+           ESTABLISH FACE
+        ================================================= */
 
         if (
-          eyeSamples >= 4
+            livenessStage ===
+            "BASELINE"
         ) {
 
-          blinkReady =
-            true;
+
+            baselineFrames++;
+
+
+            /*
+             * Smooth the initial baseline.
+             */
+
+            if (
+                baselineX === null
+            ) {
+
+                baselineX =
+                    normalizedX;
+
+            }
+
+            else {
+
+                baselineX =
+                    (
+                        baselineX * 0.80
+                    ) +
+                    (
+                        normalizedX * 0.20
+                    );
+
+            }
+
+
+            if (
+                baselineFaceWidth === null
+            ) {
+
+                baselineFaceWidth =
+                    faceWidth;
+
+            }
+
+            else {
+
+                baselineFaceWidth =
+                    (
+                        baselineFaceWidth * 0.80
+                    ) +
+                    (
+                        faceWidth * 0.20
+                    );
+
+            }
+
+
+            status.textContent =
+                "Face detected.";
+
+
+            instruction.textContent =
+                "Keep your face inside the oval.";
+
+
+            setProgress(
+                Math.min(
+                    25,
+                    5 +
+                    baselineFrames * 4
+                )
+            );
+
+
+            /*
+             * Only 5 good frames needed.
+             */
+
+            if (
+                baselineFrames >= 5
+            ) {
+
+
+                livenessStage =
+                    "MOVE";
+
+
+                status.textContent =
+                    "Face detected.";
+
+
+                instruction.textContent =
+                    "Now turn your head slightly left or right.";
+
+
+                setProgress(30);
+
+            }
+
+
+            return;
 
         }
 
 
-        return;
+        /* =================================================
+           STAGE 2
+           HEAD MOVEMENT
+        ================================================= */
 
-      }
-
-
-      /*
-       * Dynamic blink thresholds.
-       */
-
-      const closeThreshold =
-        Math.max(
-          eyeBaseline * 0.72,
-          0.16
-        );
+        if (
+            livenessStage ===
+            "MOVE"
+        ) {
 
 
-      const openThreshold =
-        Math.max(
-          eyeBaseline * 0.88,
-          0.20
-        );
+            /*
+             * Horizontal movement of the face
+             * relative to the initial position.
+             */
+
+            const movement =
+                Math.abs(
+                    normalizedX -
+                    baselineX
+                );
 
 
-      /*
-       * Eye closing.
-       */
+            /*
+             * Also consider a modest change
+             * in apparent face width.
+             */
 
-      if (
-        ear <
-        closeThreshold
-      ) {
-
-        blinkClosed =
-          true;
-
-
-        return;
-
-      }
+            const sizeChange =
+                Math.abs(
+                    faceWidth -
+                    baselineFaceWidth
+                );
 
 
-      /*
-       * Eye opening again.
-       */
+            /*
+             * Either horizontal movement or
+             * slight distance change is enough.
+             */
 
-      if (
-        blinkClosed &&
-        ear >
-        openThreshold
-      ) {
-
-
-        livenessStage =
-          "VERIFY";
+            if (
+                movement > 0.055 ||
+                sizeChange > 0.10
+            ) {
 
 
-        status.textContent =
-          "Liveness verified.";
+                headMoved =
+                    true;
 
 
-        instruction.textContent =
-          "Verifying your face...";
+                livenessStage =
+                    "RETURN";
 
 
-        setProgress(85);
+                status.textContent =
+                    "Good.";
 
 
-        stopLivenessTimer();
+                instruction.textContent =
+                    "Now look straight at the camera again.";
 
 
-        setTimeout(
-          verifyFace,
-          150
-        );
+                setProgress(50);
 
-      }
+            }
+
+
+            return;
+
+        }
+
+
+        /* =================================================
+           STAGE 3
+           RETURN
+        ================================================= */
+
+        if (
+            livenessStage ===
+            "RETURN"
+        ) {
+
+
+            const movement =
+                Math.abs(
+                    normalizedX -
+                    baselineX
+                );
+
+
+            /*
+             * More tolerant centre range.
+             */
+
+            if (
+                movement < 0.12
+            ) {
+
+
+                livenessStage =
+                    "BLINK";
+
+
+                eyeBaseline =
+                    null;
+
+
+                eyeSamples =
+                    0;
+
+
+                blinkReady =
+                    false;
+
+
+                blinkClosed =
+                    false;
+
+
+                status.textContent =
+                    "Good.";
+
+
+                instruction.textContent =
+                    "Now close and open your eyes once.";
+
+
+                setProgress(65);
+
+            }
+
+
+            return;
+
+        }
+
+
+        /* =================================================
+           STAGE 4
+           BLINK
+        ================================================= */
+
+        if (
+            livenessStage ===
+            "BLINK"
+        ) {
+
+
+            const ear =
+                calculateEAR(
+                    landmarks
+                );
+
+
+            /*
+             * Establish normal eye opening.
+             */
+
+            if (
+                !blinkReady
+            ) {
+
+
+                if (
+                    eyeBaseline === null
+                ) {
+
+                    eyeBaseline =
+                        ear;
+
+                }
+
+                else {
+
+                    eyeBaseline =
+                        (
+                            eyeBaseline * 0.80
+                        ) +
+                        (
+                            ear * 0.20
+                        );
+
+                }
+
+
+                eyeSamples++;
+
+
+                status.textContent =
+                    "Eyes detected.";
+
+
+                instruction.textContent =
+                    "Now close and open your eyes once.";
+
+
+                /*
+                 * Only four samples needed.
+                 */
+
+                if (
+                    eyeSamples >= 4
+                ) {
+
+                    blinkReady =
+                        true;
+
+                }
+
+
+                return;
+
+            }
+
+
+            /*
+             * Dynamic thresholds.
+             */
+
+            const closeThreshold =
+                Math.max(
+                    eyeBaseline * 0.72,
+                    0.15
+                );
+
+
+            const openThreshold =
+                Math.max(
+                    eyeBaseline * 0.84,
+                    0.19
+                );
+
+
+            /*
+             * Eyes closing.
+             */
+
+            if (
+                ear <
+                closeThreshold
+            ) {
+
+                blinkClosed =
+                    true;
+
+                return;
+
+            }
+
+
+            /*
+             * Eyes opened after closing.
+             */
+
+            if (
+                blinkClosed &&
+                ear >
+                openThreshold
+            ) {
+
+
+                livenessStage =
+                    "VERIFY";
+
+
+                status.textContent =
+                    "Liveness verified.";
+
+
+                instruction.textContent =
+                    "Verifying your face...";
+
+
+                setProgress(85);
+
+
+                stopLivenessTimers();
+
+
+                setTimeout(
+                    verifyFace,
+                    200
+                );
+
+            }
+
+        }
 
     }
 
+    catch (error) {
 
-  }
 
-  catch (error) {
+        console.error(
+            "Liveness detection error:",
+            error
+        );
 
-    console.error(
-      "Liveness error:",
-      error
-    );
 
-  }
+        /*
+         * Do not close the camera because
+         * of one detection error.
+         */
 
-  finally {
+    }
 
-    livenessBusy =
-      false;
+    finally {
 
-  }
+        detectionBusy =
+            false;
+
+    }
 
 }
 
 
 /* =========================================================
-   HEAD YAW
+   CALCULATE EAR
 ========================================================= */
 
-function calculateYaw(
-  landmarks
+function calculateEAR(
+    landmarks
 ) {
 
 
-  const positions =
-    landmarks.positions;
+    const positions =
+        landmarks.positions;
 
 
-  /*
-   * Use both eyes and the nose.
-   *
-   * This is deliberately only a relative
-   * movement measurement.
-   */
-
-  const leftEye =
-    positions[36];
-
-
-  const rightEye =
-    positions[45];
+    const leftEAR =
+        eyeAspectRatio(
+            positions,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41
+        );
 
 
-  const nose =
-    positions[30];
+    const rightEAR =
+        eyeAspectRatio(
+            positions,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47
+        );
 
 
-  const eyeCenterX =
-    (
-      leftEye.x +
-      rightEye.x
+    return (
+        leftEAR +
+        rightEAR
     ) / 2;
-
-
-  const eyeDistance =
-    Math.abs(
-      rightEye.x -
-      leftEye.x
-    );
-
-
-  if (
-    eyeDistance < 1
-  ) {
-
-    return 0;
-
-  }
-
-
-  return (
-    nose.x -
-    eyeCenterX
-  ) /
-  eyeDistance;
 
 }
 
@@ -1391,100 +1635,55 @@ function calculateYaw(
    EYE ASPECT RATIO
 ========================================================= */
 
-function calculateEAR(
-  landmarks
-) {
-
-
-  const positions =
-    landmarks.positions;
-
-
-  const leftEAR =
-    eyeAspectRatio(
-      positions,
-      36,
-      37,
-      38,
-      39,
-      40,
-      41
-    );
-
-
-  const rightEAR =
-    eyeAspectRatio(
-      positions,
-      42,
-      43,
-      44,
-      45,
-      46,
-      47
-    );
-
-
-  return (
-    leftEAR +
-    rightEAR
-  ) / 2;
-
-}
-
-
-/* =========================================================
-   EYE ASPECT RATIO CALCULATION
-========================================================= */
-
 function eyeAspectRatio(
-  points,
-  p1,
-  p2,
-  p3,
-  p4,
-  p5,
-  p6
+    points,
+    p1,
+    p2,
+    p3,
+    p4,
+    p5,
+    p6
 ) {
 
 
-  const vertical1 =
-    distance(
-      points[p2],
-      points[p6]
+    const vertical1 =
+        distance(
+            points[p2],
+            points[p6]
+        );
+
+
+    const vertical2 =
+        distance(
+            points[p3],
+            points[p5]
+        );
+
+
+    const horizontal =
+        distance(
+            points[p1],
+            points[p4]
+        );
+
+
+    if (
+        horizontal <= 0
+    ) {
+
+        return 1;
+
+    }
+
+
+    return (
+        vertical1 +
+        vertical2
+    ) /
+    (
+        2 *
+        horizontal
     );
-
-
-  const vertical2 =
-    distance(
-      points[p3],
-      points[p5]
-    );
-
-
-  const horizontal =
-    distance(
-      points[p1],
-      points[p4]
-    );
-
-
-  if (
-    horizontal === 0
-  ) {
-
-    return 1;
-
-  }
-
-
-  return (
-    vertical1 +
-    vertical2
-  ) /
-  (
-    2 *
-    horizontal
-  );
 
 }
 
@@ -1494,24 +1693,25 @@ function eyeAspectRatio(
 ========================================================= */
 
 function distance(
-  a,
-  b
+    a,
+    b
 ) {
 
-  const dx =
-    a.x -
-    b.x;
+
+    const dx =
+        a.x -
+        b.x;
 
 
-  const dy =
-    a.y -
-    b.y;
+    const dy =
+        a.y -
+        b.y;
 
 
-  return Math.sqrt(
-    dx * dx +
-    dy * dy
-  );
+    return Math.sqrt(
+        dx * dx +
+        dy * dy
+    );
 
 }
 
@@ -1523,247 +1723,238 @@ function distance(
 async function verifyFace() {
 
 
-  if (!running) {
-    return;
-  }
-
-
-  processing =
-    true;
-
-
-  status.textContent =
-    "Matching your face...";
-
-
-  instruction.textContent =
-    "Please keep still.";
-
-
-  setProgress(90);
-
-
-  try {
-
-
-    const detection =
-      await faceapi
-        .detectSingleFace(
-
-          video,
-
-          new faceapi
-            .TinyFaceDetectorOptions({
-
-              inputSize: 320,
-
-              scoreThreshold: 0.40
-
-            })
-
-        )
-        .withFaceLandmarks(
-          true
-        )
-        .withFaceDescriptor();
-
-
-    if (!detection) {
-
-      throw new Error(
-        "Your face moved out of view. Please try again."
-      );
-
+    if (!running) {
+        return;
     }
 
 
-    const liveDescriptor =
-      Array.from(
-        detection.descriptor
-      );
+    processing =
+        true;
 
 
-    let bestMatch =
-      null;
+    status.textContent =
+        "Matching your face...";
 
 
-    let bestDistance =
-      Infinity;
+    instruction.textContent =
+        "Please keep still.";
 
 
-    /*
-     * Compare live face against
-     * every sample of every staff member.
-     */
-
-    registeredFaces.forEach(
-      function(person) {
+    setProgress(90);
 
 
-        if (
-          !Array.isArray(
-            person.samples
-          )
-        ) {
+    try {
 
-          return;
+
+        /*
+         * Get a fresh descriptor.
+         */
+
+        const detection =
+            await faceapi
+                .detectSingleFace(
+                    video,
+                    DETECTOR_OPTIONS
+                )
+                .withFaceLandmarks(true)
+                .withFaceDescriptor();
+
+
+        if (!detection) {
+
+            throw new Error(
+                "Face was lost. Please try again."
+            );
 
         }
 
 
-        person.samples.forEach(
-          function(sample) {
-
-
-            if (
-              !Array.isArray(sample) ||
-              sample.length !== 128
-            ) {
-
-              return;
-
-            }
-
-
-            const distance =
-              faceapi.euclideanDistance(
-
-                liveDescriptor,
-
-                sample
-
-              );
-
-
-            console.log(
-              person.staffName +
-              " distance:",
-              distance
+        const liveDescriptor =
+            Array.from(
+                detection.descriptor
             );
 
 
-            if (
-              distance <
-              bestDistance
-            ) {
-
-              bestDistance =
-                distance;
+        let bestMatch =
+            null;
 
 
-              bestMatch =
-                person;
+        let bestDistance =
+            Infinity;
+
+
+        /*
+         * Compare with EVERY sample.
+         */
+
+        registeredFaces.forEach(
+            function(person) {
+
+
+                if (
+                    !Array.isArray(
+                        person.samples
+                    )
+                ) {
+
+                    return;
+
+                }
+
+
+                person.samples.forEach(
+                    function(sample) {
+
+
+                        if (
+                            !Array.isArray(sample) ||
+                            sample.length !== 128
+                        ) {
+
+                            return;
+
+                        }
+
+
+                        const currentDistance =
+                            faceapi.euclideanDistance(
+                                liveDescriptor,
+                                sample
+                            );
+
+
+                        console.log(
+                            person.staffName +
+                            " distance:",
+                            currentDistance
+                        );
+
+
+                        if (
+                            currentDistance <
+                            bestDistance
+                        ) {
+
+                            bestDistance =
+                                currentDistance;
+
+
+                            bestMatch =
+                                person;
+
+                        }
+
+                    }
+                );
 
             }
-
-          }
         );
 
-      }
-    );
+
+        console.log(
+            "Best match:",
+            bestMatch
+        );
 
 
-    console.log(
-      "Best match:",
-      bestMatch
-    );
+        console.log(
+            "Best distance:",
+            bestDistance
+        );
 
 
-    console.log(
-      "Best distance:",
-      bestDistance
-    );
+        /*
+         * No matching staff member.
+         */
+
+        if (
+            !bestMatch ||
+            bestDistance >
+            MATCH_THRESHOLD
+        ) {
 
 
-    /*
-     * Reject if there is no sufficiently
-     * close match.
-     */
-
-    if (
-      !bestMatch ||
-      bestDistance >
-      MATCH_THRESHOLD
-    ) {
+            status.textContent =
+                "Face not recognized.";
 
 
-      status.textContent =
-        "Face not recognized.";
+            instruction.textContent =
+                "Please try again.";
 
 
-      instruction.textContent =
-        "Please try again.";
+            showResult(
+
+                "<h2>Face Not Recognized</h2>" +
+
+                "<p>No registered staff member matched your face.</p>" +
+
+                "<p>Match distance: " +
+                Number(
+                    bestDistance
+                ).toFixed(4) +
+                "</p>",
+
+                "error"
+
+            );
 
 
-      showResult(
-
-        "<h2>Face Not Recognized</h2>" +
-
-        "<p>No registered staff member matched your face.</p>" +
-
-        "<p>Match distance: " +
-        Number(
-          bestDistance
-        ).toFixed(4) +
-        "</p>",
-
-        "error"
-
-      );
+            resetAfterFailure();
 
 
-      resetForRetry();
+            return;
+
+        }
 
 
-      return;
+        /*
+         * Face successfully identified.
+         */
+
+        status.textContent =
+            "Face verified.";
+
+
+        instruction.textContent =
+            "Recording attendance...";
+
+
+        setProgress(95);
+
+
+        sendAttendance(
+            bestMatch,
+            bestDistance
+        );
 
     }
 
-
-    /*
-     * Successful face recognition.
-     */
-
-    status.textContent =
-      "Face verified.";
+    catch (error) {
 
 
-    instruction.textContent =
-      "Recording attendance...";
+        console.error(
+            error
+        );
 
 
-    setProgress(95);
+        status.textContent =
+            "Verification failed.";
 
 
-    sendAttendance(
-      bestMatch,
-      bestDistance
-    );
-
-  }
-
-  catch (error) {
-
-    console.error(error);
+        instruction.textContent =
+            "Please try again.";
 
 
-    status.textContent =
-      "Verification failed.";
+        showResult(
+            error.message ||
+            "Unable to verify face.",
+            "error"
+        );
 
 
-    showResult(
+        resetAfterFailure();
 
-      error.message ||
-      "Unable to verify face.",
-
-      "error"
-
-    );
-
-
-    resetForRetry();
-
-  }
+    }
 
 }
 
@@ -1773,276 +1964,272 @@ async function verifyFace() {
 ========================================================= */
 
 function sendAttendance(
-  person,
-  distanceValue
+    person,
+    distanceValue
 ) {
 
 
-  const callbackName =
-    "attendance_" +
-    Date.now();
+    const callbackName =
+        "attendance_" +
+        Date.now();
 
 
-  window[callbackName] =
-    function(data) {
+    window[callbackName] =
+        function(data) {
 
 
-      try {
+            try {
 
 
-        /*
-         * Successful attendance.
-         */
+                /*
+                 * Attendance successfully recorded.
+                 */
 
-        if (
-          data.success
-        ) {
+                if (
+                    data.success
+                ) {
 
 
-          status.textContent =
-            "Attendance recorded.";
+                    status.textContent =
+                        "Attendance recorded.";
 
 
-          instruction.textContent =
-            "";
+                    instruction.textContent =
+                        "";
 
 
-          setProgress(100);
+                    setProgress(100);
 
 
-          showResult(
+                    showResult(
 
-            "<h2>Attendance Marked</h2>" +
+                        "<h2>Attendance Marked</h2>" +
 
-            "<p><strong>" +
-            escapeHtml(
-              person.staffName
-            ) +
-            "</strong></p>" +
+                        "<p><strong>" +
+                        escapeHtml(
+                            person.staffName
+                        ) +
+                        "</strong></p>" +
 
-            "<p>Date: " +
-            escapeHtml(
-              data.date
-            ) +
-            "</p>" +
+                        "<p>Date: " +
+                        escapeHtml(
+                            data.date
+                        ) +
+                        "</p>" +
 
-            "<p>Time: " +
-            escapeHtml(
-              data.time
-            ) +
-            "</p>",
+                        "<p>Time: " +
+                        escapeHtml(
+                            data.time
+                        ) +
+                        "</p>",
 
-            "success"
+                        "success"
 
-          );
+                    );
 
 
-          stopCamera();
+                    stopCamera();
 
 
-          running =
-            false;
+                    running =
+                        false;
 
 
-          processing =
-            false;
+                    processing =
+                        false;
 
 
-          startButton.disabled =
-            false;
+                    startButton.disabled =
+                        false;
 
 
-        }
+                }
 
 
-        /*
-         * Duplicate attendance.
-         */
+                /*
+                 * Duplicate attendance.
+                 */
 
-        else if (
-          data.duplicate
-        ) {
+                else if (
+                    data.duplicate
+                ) {
 
 
-          status.textContent =
-            "Attendance already marked.";
+                    status.textContent =
+                        "Attendance already marked.";
 
 
-          instruction.textContent =
-            "";
+                    instruction.textContent =
+                        "";
 
 
-          showResult(
+                    showResult(
 
-            "<h2>Already Marked</h2>" +
+                        "<h2>Already Marked</h2>" +
 
-            "<p>" +
-            escapeHtml(
-              data.message
-            ) +
-            "</p>" +
+                        "<p>" +
+                        escapeHtml(
+                            data.message
+                        ) +
+                        "</p>" +
 
-            "<p>First attendance time: " +
-            escapeHtml(
-              data.time
-            ) +
-            "</p>",
+                        "<p>First attendance time: " +
+                        escapeHtml(
+                            data.time
+                        ) +
+                        "</p>",
 
-            "warning"
+                        "warning"
 
-          );
+                    );
 
 
-          stopCamera();
+                    stopCamera();
 
 
-          running =
-            false;
+                    running =
+                        false;
 
 
-          processing =
-            false;
+                    processing =
+                        false;
 
 
-          startButton.disabled =
-            false;
+                    startButton.disabled =
+                        false;
 
 
-        }
+                }
 
 
-        /*
-         * Other server error.
-         */
+                /*
+                 * Server error.
+                 */
 
-        else {
+                else {
 
 
-          status.textContent =
-            "Attendance failed.";
+                    status.textContent =
+                        "Attendance failed.";
 
 
-          showResult(
+                    showResult(
 
-            data.error ||
-            "Unable to record attendance.",
+                        data.error ||
+                        "Unable to record attendance.",
 
-            "error"
+                        "error"
 
-          );
+                    );
 
 
-          resetForRetry();
+                    resetAfterFailure();
 
-        }
+                }
 
-      }
+            }
 
+            finally {
 
-      finally {
 
+                delete window[
+                    callbackName
+                ];
 
-        delete window[
-          callbackName
-        ];
 
+                const script =
+                    document.getElementById(
+                        callbackName
+                    );
 
-        const script =
-          document.getElementById(
+
+                if (script) {
+                    script.remove();
+                }
+
+            }
+
+        };
+
+
+    const verification =
+        "FACE_MATCH_" +
+        Number(
+            distanceValue
+        ).toFixed(4) +
+        "_LIVENESS_OK";
+
+
+    const url =
+        APPS_SCRIPT_URL +
+
+        "?action=faceAttendance" +
+
+        "&staffId=" +
+        encodeURIComponent(
+            person.staffId
+        ) +
+
+        "&verification=" +
+        encodeURIComponent(
+            verification
+        ) +
+
+        "&device=" +
+        encodeURIComponent(
+            getDevice()
+        ) +
+
+        "&callback=" +
+        encodeURIComponent(
             callbackName
-          );
+        );
 
 
-        if (script) {
-          script.remove();
-        }
-
-      }
-
-    };
+    const script =
+        document.createElement(
+            "script"
+        );
 
 
-  const verification =
-    "FACE_MATCH_" +
-    Number(
-      distanceValue
-    ).toFixed(4) +
-    "_LIVENESS_OK";
+    script.id =
+        callbackName;
 
 
-  const url =
-    APPS_SCRIPT_URL +
+    script.src =
+        url;
 
-    "?action=faceAttendance" +
 
-    "&staffId=" +
-    encodeURIComponent(
-      person.staffId
-    ) +
+    script.onerror =
+        function() {
 
-    "&verification=" +
-    encodeURIComponent(
-      verification
-    ) +
 
-    "&device=" +
-    encodeURIComponent(
-      getDevice()
-    ) +
+            delete window[
+                callbackName
+            ];
 
-    "&callback=" +
-    encodeURIComponent(
-      callbackName
+
+            script.remove();
+
+
+            status.textContent =
+                "Connection failed.";
+
+
+            showResult(
+                "Unable to connect to the attendance server.",
+                "error"
+            );
+
+
+            resetAfterFailure();
+
+        };
+
+
+    document.body.appendChild(
+        script
     );
-
-
-  const script =
-    document.createElement(
-      "script"
-    );
-
-
-  script.id =
-    callbackName;
-
-
-  script.src =
-    url;
-
-
-  script.onerror =
-    function() {
-
-
-      delete window[
-        callbackName
-      ];
-
-
-      script.remove();
-
-
-      status.textContent =
-        "Connection failed.";
-
-
-      showResult(
-
-        "Unable to connect to the attendance server.",
-
-        "error"
-
-      );
-
-
-      resetForRetry();
-
-    };
-
-
-  document.body.appendChild(
-    script
-  );
 
 }
 
@@ -2054,112 +2241,123 @@ function sendAttendance(
 function livenessFailed() {
 
 
-  if (
-    !running ||
-    processing
-  ) {
+    if (
+        !running ||
+        processing
+    ) {
 
-    return;
+        return;
 
-  }
-
-
-  stopLivenessTimer();
+    }
 
 
-  status.textContent =
-    "Liveness check timed out.";
+    stopLivenessTimers();
 
 
-  instruction.textContent =
-    "Please try again.";
+    /*
+     * IMPORTANT:
+     *
+     * Do NOT close the camera.
+     */
+
+    status.textContent =
+        "Liveness check was not completed.";
 
 
-  showResult(
-
-    "<h2>Try Again</h2>" +
-
-    "<p>The system could not complete the face movement and blink check.</p>" +
-
-    "<p>Make sure your face is clearly visible and there is enough light.</p>",
-
-    "warning"
-
-  );
+    instruction.textContent =
+        "Follow the instructions and try again.";
 
 
-  resetForRetry();
+    showResult(
+
+        "<h2>Try Again</h2>" +
+
+        "<p>The camera is still active.</p>" +
+
+        "<p>Keep your face clearly visible, turn your head slightly, return to the centre and blink once.</p>",
+
+        "warning"
+
+    );
+
+
+    retryButton.style.display =
+        "block";
+
+
+    processing =
+        false;
 
 }
 
 
 /* =========================================================
-   STOP LIVENESS
+   RESET AFTER FAILURE
 ========================================================= */
 
-function stopLivenessTimer() {
+function resetAfterFailure() {
 
 
-  if (
-    livenessTimer
-  ) {
-
-    clearInterval(
-      livenessTimer
-    );
-
-    livenessTimer =
-      null;
-
-  }
+    stopLivenessTimers();
 
 
-  if (
-    livenessTimeoutTimer
-  ) {
+    /*
+     * Keep camera open.
+     */
 
-    clearTimeout(
-      livenessTimeoutTimer
-    );
+    retryButton.style.display =
+        "block";
 
-    livenessTimeoutTimer =
-      null;
 
-  }
+    processing =
+        false;
+
+
+    status.textContent =
+        "Verification failed.";
+
+
+    instruction.textContent =
+        "Tap Try Again.";
 
 }
 
 
 /* =========================================================
-   RESET
+   STOP LIVENESS TIMERS
 ========================================================= */
 
-function resetForRetry() {
+function stopLivenessTimers() {
 
 
-  stopLivenessTimer();
+    if (
+        livenessTimer
+    ) {
+
+        clearInterval(
+            livenessTimer
+        );
 
 
-  stopCamera();
+        livenessTimer =
+            null;
+
+    }
 
 
-  running =
-    false;
+    if (
+        livenessTimeoutTimer
+    ) {
+
+        clearTimeout(
+            livenessTimeoutTimer
+        );
 
 
-  processing =
-    false;
+        livenessTimeoutTimer =
+            null;
 
-
-  livenessBusy =
-    false;
-
-
-  startButton.disabled =
-    false;
-
-
-  setProgress(0);
+    }
 
 }
 
@@ -2171,34 +2369,37 @@ function resetForRetry() {
 function stopCamera() {
 
 
-  if (
-    cameraStream
-  ) {
+    stopLivenessTimers();
 
 
-    cameraStream
-      .getTracks()
-      .forEach(
-        function(track) {
-
-          track.stop();
-
-        }
-      );
+    if (
+        cameraStream
+    ) {
 
 
-    cameraStream =
-      null;
+        cameraStream
+            .getTracks()
+            .forEach(
+                function(track) {
 
-  }
+                    track.stop();
+
+                }
+            );
 
 
-  video.srcObject =
-    null;
+        cameraStream =
+            null;
+
+    }
 
 
-  cameraBox.style.display =
-    "none";
+    video.srcObject =
+        null;
+
+
+    cameraBox.style.display =
+        "none";
 
 }
 
@@ -2208,11 +2409,11 @@ function stopCamera() {
 ========================================================= */
 
 function setProgress(
-  value
+    value
 ) {
 
-  progressBar.style.width =
-    value + "%";
+    progressBar.style.width =
+        value + "%";
 
 }
 
@@ -2222,28 +2423,29 @@ function setProgress(
 ========================================================= */
 
 function showResult(
-  html,
-  type
+    html,
+    type
 ) {
 
-  resultBox.innerHTML =
-    html;
+    resultBox.innerHTML =
+        html;
 
 
-  resultBox.className =
-    "result " + type;
+    resultBox.className =
+        "result " +
+        type;
 
 }
 
 
 function clearResult() {
 
-  resultBox.innerHTML =
-    "";
+    resultBox.innerHTML =
+        "";
 
 
-  resultBox.className =
-    "result";
+    resultBox.className =
+        "result";
 
 }
 
@@ -2255,89 +2457,89 @@ function clearResult() {
 function getDevice() {
 
 
-  const ua =
-    navigator.userAgent;
+    const ua =
+        navigator.userAgent;
 
 
-  if (
-    /iPhone|iPad|iPod/i
-      .test(ua)
-  ) {
+    if (
+        /iPhone|iPad|iPod/i
+            .test(ua)
+    ) {
 
-    return "iPhone/iPad";
+        return "iPhone/iPad";
 
-  }
-
-
-  if (
-    /Android/i
-      .test(ua)
-  ) {
-
-    return "Android";
-
-  }
+    }
 
 
-  if (
-    /Windows/i
-      .test(ua)
-  ) {
+    if (
+        /Android/i
+            .test(ua)
+    ) {
 
-    return "Windows";
+        return "Android";
 
-  }
-
-
-  if (
-    /Mac/i
-      .test(ua)
-  ) {
-
-    return "Mac";
-
-  }
+    }
 
 
-  return "Other";
+    if (
+        /Windows/i
+            .test(ua)
+    ) {
+
+        return "Windows";
+
+    }
+
+
+    if (
+        /Mac/i
+            .test(ua)
+    ) {
+
+        return "Mac";
+
+    }
+
+
+    return "Other";
 
 }
 
 
 /* =========================================================
-   HTML ESCAPE
+   ESCAPE HTML
 ========================================================= */
 
 function escapeHtml(
-  text
+    text
 ) {
 
-  return String(text)
+    return String(text)
 
-    .replace(
-      /&/g,
-      "&amp;"
-    )
+        .replace(
+            /&/g,
+            "&amp;"
+        )
 
-    .replace(
-      /</g,
-      "&lt;"
-    )
+        .replace(
+            /</g,
+            "&lt;"
+        )
 
-    .replace(
-      />/g,
-      "&gt;"
-    )
+        .replace(
+            />/g,
+            "&gt;"
+        )
 
-    .replace(
-      /"/g,
-      "&quot;"
-    )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
 
-    .replace(
-      /'/g,
-      "&#039;"
-    );
+        .replace(
+            /'/g,
+            "&#039;"
+        );
 
 }
 
