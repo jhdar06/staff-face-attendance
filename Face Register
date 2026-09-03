@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register Staff Face</title>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#202124}
+.container{max-width:620px;margin:25px auto;padding:16px}
+.card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 4px 18px rgba(0,0,0,.08)}
+h1{margin:0 0 5px;font-size:25px}
+.sub{color:#666;margin-bottom:18px}
+.staff{padding:12px;border-radius:10px;background:#f1f3f4;margin-bottom:15px}
+.camera{position:relative;width:100%;aspect-ratio:4/3;background:#111;border-radius:14px;overflow:hidden}
+video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.guide{position:absolute;inset:12% 18%;border:2px solid rgba(255,255,255,.8);border-radius:45%}
+.status{margin:15px 0;padding:12px;border-radius:10px;background:#eef3f8;line-height:1.45}
+.progress{height:9px;background:#e5e7eb;border-radius:10px;overflow:hidden}
+.bar{height:100%;width:0;background:#2563eb;transition:width .25s}
+button{width:100%;border:0;border-radius:10px;padding:13px;font-size:16px;font-weight:600;cursor:pointer;margin-top:12px}
+#start{background:#1a73e8;color:white}
+#save{background:#188038;color:white;display:none}
+#back{background:#e8eaed;color:#202124}
+button:disabled{opacity:.55;cursor:not-allowed}
+.note{font-size:12px;color:#666;text-align:center;margin-top:15px;line-height:1.5}
+.success{background:#e6f4ea;color:#137333}
+.error{background:#fce8e6;color:#c5221f}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="card">
+<h1>Staff Face Registration</h1>
+<div class="sub">Five-sample biometric registration</div>
+
+<div id="staff" class="staff">Loading staff information...</div>
+
+<div class="camera">
+<video id="video" autoplay muted playsinline></video>
+<div class="guide"></div>
+</div>
+
+<div id="status" class="status">Press Start Registration.</div>
+<div class="progress"><div id="bar" class="bar"></div></div>
+
+<button id="start">Start Registration</button>
+<button id="save">Save 5 Samples</button>
+<button id="back" onclick="history.back()">Back to Admin</button>
+
+<div class="note">
+Face descriptors are generated in this browser. Five 128-value samples are sent to the existing Apps Script face-template endpoint. No face photograph is stored by this page.
+</div>
+</div>
+</div>
+
+<script>
+const APPS_SCRIPT_URL =
+"https://script.google.com/macros/s/AKfycbzT-N64qGREd32KdznpyibHANy3VwJh25k2oeQ9hwVkLyAldKzDb5mB6ZHLXzvQ-DbC8A/exec";
+
+const MODEL_URL =
+"https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights";
+
+const staffId = new URLSearchParams(location.search).get("staffId") || "";
+
+const video = document.getElementById("video");
+const staffBox = document.getElementById("staff");
+const statusBox = document.getElementById("status");
+const bar = document.getElementById("bar");
+const startBtn = document.getElementById("start");
+const saveBtn = document.getElementById("save");
+
+let stream = null;
+let samples = [];
+let modelsLoaded = false;
+
+function setStatus(text, type="") {
+  statusBox.textContent = text;
+  statusBox.className = "status" + (type ? " " + type : "");
+}
+
+function progress(n) {
+  bar.style.width = Math.max(0, Math.min(100, n)) + "%";
+}
+
+function jsonp(params, timeout=15000) {
+  return new Promise((resolve, reject) => {
+    const callback = "cb_" + Date.now() + "_" + Math.floor(Math.random()*10000);
+    const script = document.createElement("script");
+    const query = new URLSearchParams({...params, callback}).toString();
+    let timer;
+
+    window[callback] = data => {
+      clearTimeout(timer);
+      delete window[callback];
+      script.remove();
+      resolve(data);
+    };
+
+    script.onerror = () => {
+      clearTimeout(timer);
+      delete window[callback];
+      script.remove();
+      reject(new Error("Unable to contact attendance server."));
+    };
+
+    timer = setTimeout(() => {
+      delete window[callback];
+      script.remove();
+      reject(new Error("Server request timed out."));
+    }, timeout);
+
+    script.src = APPS_SCRIPT_URL + "?" + query;
+    document.body.appendChild(script);
+  });
+}
+
+async function loadStaff() {
+  if (!staffId) {
+    staffBox.textContent = "No Staff ID supplied. Open this page from Admin Dashboard.";
+    startBtn.disabled = true;
+    return;
+  }
+
+  try {
+    const result = await jsonp({action:"getStaff"});
+    if (!result.success) throw new Error(result.error || "Unable to load staff.");
+
+    const staff = (result.staff || []).find(x => String(x.staffId) === String(staffId));
+
+    if (!staff) {
+      throw new Error("Active staff member not found: " + staffId);
+    }
+
+    staffBox.innerHTML =
+      "<strong>" + escapeHtml(staff.staffName) + "</strong><br>" +
+      escapeHtml(staff.staffId) + " &nbsp;•&nbsp; " +
+      escapeHtml(staff.designation || "");
+
+  } catch (err) {
+    staffBox.textContent = err.message;
+    startBtn.disabled = true;
+    setStatus(err.message, "error");
+  }
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[c]));
+}
+
+async function loadModels() {
+  if (modelsLoaded) return;
+  setStatus("Loading face recognition models...");
+  await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+  await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+  await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+  modelsLoaded = true;
+}
+
+async function startCamera() {
+  if (stream) return;
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: "user",
+      width: {ideal: 640},
+      height: {ideal: 480}
+    },
+    audio: false
+  });
+  video.srcObject = stream;
+  await video.play();
+}
+
+function stopCamera() {
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+}
+
+async function captureSample() {
+  const detection = await faceapi
+    .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({
+      inputSize: 320,
+      scoreThreshold: 0.45
+    }))
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+
+  if (!detection) throw new Error("Face not detected. Keep your face inside the guide.");
+
+  const box = detection.detection.box;
+  if (box.width < 130 || box.height < 130) {
+    throw new Error("Move slightly closer to the camera.");
+  }
+
+  return Array.from(detection.descriptor).map(v => Number(v.toFixed(6)));
+}
+
+async function collectSamples() {
+  samples = [];
+  progress(0);
+  saveBtn.style.display = "none";
+  startBtn.disabled = true;
+
+  const instructions = [
+    "Look straight at the camera.",
+    "Turn your face slightly to the LEFT.",
+    "Turn your face slightly to the RIGHT.",
+    "Look slightly UP.",
+    "Look straight again."
+  ];
+
+  for (let i = 0; i < 5; i++) {
+    let captured = false;
+
+    for (let attempt = 0; attempt < 12 && !captured; attempt++) {
+      setStatus(
+        "Sample " + (i+1) + " of 5 — " + instructions[i] +
+        (attempt ? "  (adjusting...)" : "")
+      );
+
+      await new Promise(r => setTimeout(r, 500));
+
+      try {
+        const descriptor = await captureSample();
+        samples.push(descriptor);
+        captured = true;
+        progress(((i + 1) / 5) * 100);
+        await new Promise(r => setTimeout(r, 600));
+      } catch (e) {
+        if (attempt === 11) throw new Error("Could not capture sample " + (i+1) + ". " + e.message);
+      }
+    }
+  }
+
+  if (samples.length !== 5) throw new Error("Exactly five samples are required.");
+
+  setStatus("Five samples captured successfully. Review and save them.");
+  saveBtn.style.display = "block";
+  startBtn.disabled = false;
+  startBtn.textContent = "Capture Again";
+}
+
+async function saveSamples() {
+  if (samples.length !== 5) {
+    setStatus("Exactly five samples are required.", "error");
+    return;
+  }
+
+  saveBtn.disabled = true;
+  startBtn.disabled = true;
+  setStatus("Saving biometric template...");
+
+  try {
+    const result = await jsonp({
+      action: "saveFace",
+      staffId: staffId,
+      samples: JSON.stringify(samples)
+    }, 30000);
+
+    if (!result.success) {
+      throw new Error(result.error || "Face registration failed.");
+    }
+
+    progress(100);
+    setStatus(
+      result.message || "Face biometric registered successfully.",
+      "success"
+    );
+    saveBtn.style.display = "none";
+    startBtn.textContent = "Register Again";
+    startBtn.disabled = false;
+
+  } catch (err) {
+    setStatus(err.message, "error");
+    saveBtn.disabled = false;
+    startBtn.disabled = false;
+  }
+}
+
+startBtn.addEventListener("click", async () => {
+  try {
+    samples = [];
+    progress(0);
+    setStatus("Preparing camera and face recognition...");
+    await loadModels();
+    await startCamera();
+    await collectSamples();
+  } catch (err) {
+    setStatus(err.message || "Registration could not be started.", "error");
+    startBtn.disabled = false;
+  }
+});
+
+saveBtn.addEventListener("click", saveSamples);
+
+window.addEventListener("beforeunload", stopCamera);
+
+loadStaff();
+</script>
+</body>
+</html>
