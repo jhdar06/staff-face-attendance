@@ -564,19 +564,28 @@ async function loadFaceModels() {
         "Loading face detector...";
 
     await faceapi.nets
-        .tinyFaceDetector
-        .loadFromUri(
-            MODEL_URL
-        );
+    .tinyFaceDetector
+    .loadFromUri(
+        MODEL_URL
+    );
 
-    status.textContent =
-        "Loading face recognition...";
+status.textContent =
+    "Loading face landmarks...";
 
-    await faceapi.nets
-        .faceRecognitionNet
-        .loadFromUri(
-            MODEL_URL
-        );
+await faceapi.nets
+    .faceLandmark68TinyNet
+    .loadFromUri(
+        MODEL_URL
+    );
+
+status.textContent =
+    "Loading face recognition...";
+
+await faceapi.nets
+    .faceRecognitionNet
+    .loadFromUri(
+        MODEL_URL
+    );
 
     modelsLoaded = true;
 
@@ -1160,12 +1169,13 @@ async function verifyFace() {
     try {
 
         const detection =
-            await faceapi
-                .detectSingleFace(
-                    video,
-                    DETECTOR_OPTIONS
-                )
-                .withFaceDescriptor();
+    await faceapi
+        .detectSingleFace(
+            video,
+            DETECTOR_OPTIONS
+        )
+        .withFaceLandmarks(true)
+        .withFaceDescriptor();
 
 
         if (!detection) {
