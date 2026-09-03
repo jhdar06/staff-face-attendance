@@ -23,6 +23,8 @@ button{width:100%;border:0;border-radius:10px;padding:13px;font-size:16px;font-w
 #start{background:#1a73e8;color:white}
 #save{background:#188038;color:white;display:none}
 #back{background:#e8eaed;color:#202124}
+#another{background:#1a73e8;color:white;display:none}
+#admin{background:#e8eaed;color:#202124;display:none}
 button:disabled{opacity:.55;cursor:not-allowed}
 .note{font-size:12px;color:#666;text-align:center;margin-top:15px;line-height:1.5}
 .success{background:#e6f4ea;color:#137333}
@@ -47,7 +49,8 @@ button:disabled{opacity:.55;cursor:not-allowed}
 
 <button id="start">Start Registration</button>
 <button id="save">Save 5 Samples</button>
-<button id="back" onclick="history.back()">Back to Admin</button>
+<button id="another">Register Another Staff</button>
+<button id="admin">Back to Admin Dashboard</button>
 
 <div class="note">
 Face descriptors are generated in this browser. Five 128-value samples are sent to the existing Apps Script face-template endpoint. No face photograph is stored by this page.
@@ -70,6 +73,13 @@ const statusBox = document.getElementById("status");
 const bar = document.getElementById("bar");
 const startBtn = document.getElementById("start");
 const saveBtn = document.getElementById("save");
+const anotherBtn = document.getElementById("another");
+const adminBtn = document.getElementById("admin");
+
+const ADMIN_URL =
+"https://script.google.com/macros/s/AKfycbzT-N64qGREd32KdznpyibHANy3VwJh25k2oeQ9hwVkLyAldKzDb5mB6ZHLXzvQ-DbC8A/exec?page=admin";
+const REGISTRATION_HOME_URL =
+"https://jhdar06.github.io/staff-face-attendance/";
 
 let stream = null;
 let samples = [];
@@ -272,8 +282,11 @@ async function saveSamples() {
       "success"
     );
     saveBtn.style.display = "none";
-    startBtn.textContent = "Register Again";
-    startBtn.disabled = false;
+    startBtn.style.display = "none";
+    anotherBtn.style.display = "block";
+    adminBtn.style.display = "block";
+    startBtn.disabled = true;
+    stopCamera();
 
   } catch (err) {
     setStatus(err.message, "error");
@@ -297,6 +310,14 @@ startBtn.addEventListener("click", async () => {
 });
 
 saveBtn.addEventListener("click", saveSamples);
+
+anotherBtn.addEventListener("click", () => {
+  window.location.href = REGISTRATION_HOME_URL;
+});
+
+adminBtn.addEventListener("click", () => {
+  window.location.href = ADMIN_URL;
+});
 
 window.addEventListener("beforeunload", stopCamera);
 
