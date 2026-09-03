@@ -273,22 +273,23 @@ button:disabled {
 <div class="card">
 
 
+<button id="startButton">
+Start Attendance
+</button>
+
+
 <div id="actionPanel" class="action-panel">
     <div class="action-title">Attendance Action</div>
     <div class="action-grid">
-        <button type="button" class="actionButton active" data-action="CHECK_IN">Check In</button>
+        <button type="button" class="actionButton" data-action="CHECK_IN" disabled>Check In</button>
         <button type="button" class="actionButton" data-action="TEMP_OUT" disabled>Temporary Out</button>
         <button type="button" class="actionButton" data-action="TEMP_IN" disabled>Temporary In</button>
         <button type="button" class="actionButton" data-action="HALF_DAY_OUT" disabled>Half-Day Out</button>
         <button type="button" class="actionButton" data-action="CHECK_OUT" disabled>Check Out</button>
     </div>
-    <div id="actionInfo" class="action-info">Select an action, then tap Start Attendance.</div>
+    <div id="actionInfo" class="action-info">Complete location, face and liveness verification first. All actions will then become available.</div>
 </div>
-
-<button id="startButton">
-Start Attendance
-</button>
-
+</div>
 
 <div id="cameraBox"
      class="camera">
@@ -617,7 +618,7 @@ function updateActionInfo() {
 
 actionButtons.forEach(function(button) {
     button.addEventListener("click", function() {
-        if (button.disabled || running) return;
+        if (button.disabled || processing) return;
 
         selectedAction = button.getAttribute("data-action");
 
@@ -627,6 +628,18 @@ actionButtons.forEach(function(button) {
 
         button.classList.add("active");
         updateActionInfo();
+
+        /* Record only after the teacher explicitly selects an action. */
+        if (!attendanceVerified || !verifiedPerson) {
+            showResult(
+                "<h2>Start Attendance First</h2>" +
+                "<p>Please click Start Attendance and complete location, face and liveness verification.</p>",
+                "warning"
+            );
+            return;
+        }
+
+        sendAttendance(verifiedPerson, verifiedDistance);
     });
 });
 
@@ -744,6 +757,7 @@ async function startAttendance() {
 
     /* Start a fresh authentication session. */
     attendanceVerified = false;
+    startButton.textContent = "Start Attendance";
     verifiedPerson = null;
     verifiedDistance = null;
 
@@ -2221,23 +2235,55 @@ async function verifyFace() {
 
         /*
          * Face successfully recognized.
+         * Verification does NOT record attendance. The teacher must
+         * explicitly select one of the attendance actions.
          */
 
-        status.textContent =
-            "Face verified.";
+        attendanceVerified = true;
+        verifiedPerson = bestMatch;
+        verifiedDistance = bestDistance;
 
+        status.textContent =
+            "Verification complete.";
 
         instruction.textContent =
-            "Recording attendance...";
+            "Select an attendance action below.";
 
+        setProgress(100);
 
-        setProgress(95);
+        /* Unlock ALL actions only after verification is complete. */
+        actionButtons.forEach(function(button) {
+            button.disabled = false;
+            button.classList.remove("active");
+        });
 
+        selectedAction = "CHECK_IN";
+        const checkInButton =
+            document.querySelector('[data-action="CHECK_IN"]');
+        if (checkInButton) {
+            checkInButton.classList.add("active");
+        }
 
-        sendAttendance(
-            bestMatch,
-            bestDistance
+        actionInfo.textContent =
+            "Verified as " +
+            bestMatch.staffName +
+            ". Select any action. The system will check today's attendance data automatically.";
+
+        showResult(
+            "<h2>Verification Successful</h2>" +
+            "<p><strong>" + escapeHtml(bestMatch.staffName) + "</strong></p>" +
+            "<p>Face and location verified.</p>" +
+            "<p>Select an attendance action to record.</p>",
+            "success"
         );
+
+        /* Camera is no longer needed after authentication. */
+        stopLivenessTimers();
+        stopCamera();
+        running = false;
+        processing = false;
+        startButton.disabled = false;
+        startButton.textContent = "Re-Verify";
 
     }
 
@@ -2450,19 +2496,11 @@ function sendAttendance(
                         data.action || selectedAction
                     );
 
-                    stopCamera();
-
-
-                    running =
-                        false;
-
-
-                    processing =
-                        false;
-
-
-                    startButton.disabled =
-                        false;
+                    /* Keep the authenticated session for another action. */
+                    running = false;
+                    processing = false;
+                    startButton.disabled = false;
+                    restoreActionButtonsAfterFailure();
 
                 }
 
