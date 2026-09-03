@@ -134,6 +134,52 @@ button:disabled {
     cursor: not-allowed;
 }
 
+.action-panel {
+    margin-bottom: 8px;
+}
+
+.action-title {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #444;
+}
+
+.action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.actionButton {
+    min-height: 46px;
+    margin-top: 0;
+    background: #eef3f8;
+    color: #123f69;
+    border: 1px solid #cbd7e3;
+    font-size: 14px;
+}
+
+.actionButton.active {
+    background: #123f69;
+    color: white;
+    border-color: #123f69;
+}
+
+.actionButton:disabled {
+    background: #f0f0f0;
+    color: #999;
+    border-color: #ddd;
+}
+
+.action-info {
+    margin-top: 8px;
+    text-align: center;
+    font-size: 12px;
+    color: #666;
+    line-height: 1.4;
+}
+
 .retryButton {
     background: #5f6368;
     display: none;
@@ -226,6 +272,18 @@ button:disabled {
 
 <div class="card">
 
+
+<div id="actionPanel" class="action-panel">
+    <div class="action-title">Attendance Action</div>
+    <div class="action-grid">
+        <button type="button" class="actionButton active" data-action="CHECK_IN">Check In</button>
+        <button type="button" class="actionButton" data-action="TEMP_OUT" disabled>Temporary Out</button>
+        <button type="button" class="actionButton" data-action="TEMP_IN" disabled>Temporary In</button>
+        <button type="button" class="actionButton" data-action="HALF_DAY_OUT" disabled>Half-Day Out</button>
+        <button type="button" class="actionButton" data-action="CHECK_OUT" disabled>Check Out</button>
+    </div>
+    <div id="actionInfo" class="action-info">Select an action, then tap Start Attendance.</div>
+</div>
 
 <button id="startButton">
 Start Attendance
@@ -517,6 +575,144 @@ null;
 
 
 /* =========================================================
+   ATTENDANCE ACTIONS
+========================================================= */
+
+const ACTION_NAMES = {
+    CHECK_IN: "Check In",
+    TEMP_OUT: "Temporary Out",
+    TEMP_IN: "Temporary In",
+    HALF_DAY_OUT: "Half-Day Out",
+    CHECK_OUT: "Check Out"
+};
+
+function formatActionName(action) {
+    return ACTION_NAMES[action] || "Attendance";
+}
+
+function updateActionInfo() {
+    const messages = {
+        CHECK_IN: "Record your arrival.",
+        TEMP_OUT: "Use after Check In when leaving temporarily.",
+        TEMP_IN: "Use after Temporary Out when returning.",
+        HALF_DAY_OUT: "Leave for the remainder of the day.",
+        CHECK_OUT: "Normal Check Out is available from 3:30 PM onward."
+    };
+
+    actionInfo.textContent =
+        messages[selectedAction] || "Select an attendance action.";
+}
+
+actionButtons.forEach(function(button) {
+    button.addEventListener("click", function() {
+        if (button.disabled || running) return;
+
+        selectedAction = button.getAttribute("data-action");
+
+        actionButtons.forEach(function(item) {
+            item.classList.remove("active");
+        });
+
+        button.classList.add("active");
+        updateActionInfo();
+    });
+});
+
+function disableActionButtons() {
+    actionButtons.forEach(function(button) {
+        button.disabled = true;
+    });
+}
+
+function restoreActionButtonsAfterFailure() {
+    actionButtons.forEach(function(button) {
+        button.disabled =
+            button.getAttribute("data-action") !== selectedAction;
+
+        button.classList.toggle(
+            "active",
+            button.getAttribute("data-action") === selectedAction
+        );
+    });
+
+    updateActionInfo();
+}
+
+function updateActionsAfterSuccess(action) {
+
+    actionButtons.forEach(function(button) {
+        button.classList.remove("active");
+        button.disabled = false;
+    });
+
+    if (action === "CHECK_IN") {
+        selectedAction = "TEMP_OUT";
+
+        actionButtons.forEach(function(button) {
+            const a = button.getAttribute("data-action");
+
+            if (a === "CHECK_IN" || a === "TEMP_IN") {
+                button.disabled = true;
+            }
+        });
+
+        actionInfo.textContent =
+            "Check In recorded. You can now use Temporary Out, Half-Day Out or Check Out when permitted.";
+
+    } else if (action === "TEMP_OUT") {
+        selectedAction = "TEMP_IN";
+
+        actionButtons.forEach(function(button) {
+            const a = button.getAttribute("data-action");
+
+            if (a === "CHECK_IN" || a === "TEMP_OUT") {
+                button.disabled = true;
+            }
+        });
+
+        actionInfo.textContent =
+            "Temporary Out recorded. Temporary In is now the next temporary-movement action.";
+
+    } else if (action === "TEMP_IN") {
+        selectedAction = "TEMP_OUT";
+
+        actionButtons.forEach(function(button) {
+            if (button.getAttribute("data-action") === "CHECK_IN") {
+                button.disabled = true;
+            }
+        });
+
+        actionInfo.textContent =
+            "Temporary In recorded. You may use Temporary Out again or finish the day.";
+
+    } else if (action === "HALF_DAY_OUT") {
+        selectedAction = "HALF_DAY_OUT";
+        disableActionButtons();
+
+        actionInfo.textContent =
+            "Half-Day Out recorded. No further attendance action is required today.";
+
+    } else if (action === "CHECK_OUT") {
+        selectedAction = "CHECK_OUT";
+        disableActionButtons();
+
+        actionInfo.textContent =
+            "Check Out recorded. Attendance for today is closed.";
+    }
+
+    actionButtons.forEach(function(button) {
+        if (
+            button.getAttribute("data-action") === selectedAction &&
+            !button.disabled
+        ) {
+            button.classList.add("active");
+        }
+    });
+}
+
+updateActionInfo();
+
+/* =========================================================
    START BUTTON
 ========================================================= */
 
@@ -566,6 +762,8 @@ async function startAttendance() {
 
     startButton.disabled =
         true;
+
+    disableActionButtons();
 
 
     retryButton.style.display =
@@ -852,6 +1050,8 @@ async function startAttendance() {
 
         startButton.disabled =
             false;
+
+        restoreActionButtonsAfterFailure();
 
 
         status.textContent =
@@ -2214,7 +2414,13 @@ function sendAttendance(
 
                     showResult(
 
-                        "<h2>Attendance Marked</h2>" +
+                        "<h2>" +
+                            escapeHtml(
+                                formatActionName(
+                                    data.action || selectedAction
+                                )
+                            ) +
+                            " Recorded</h2>" +
 
                         "<p><strong>" +
 
@@ -2244,6 +2450,10 @@ function sendAttendance(
 
                     );
 
+
+                    updateActionsAfterSuccess(
+                        data.action || selectedAction
+                    );
 
                     stopCamera();
 
@@ -2459,6 +2669,12 @@ function sendAttendance(
             person.staffId
         ) +
 
+        "&action=" +
+
+        encodeURIComponent(
+            selectedAction
+        ) +
+
         "&verification=" +
 
         encodeURIComponent(
@@ -2607,6 +2823,8 @@ function livenessFailed() {
     retryButton.style.display =
         "block";
 
+    restoreActionButtonsAfterFailure();
+
 
     processing =
         false;
@@ -2622,6 +2840,8 @@ function resetAfterFailure() {
 
 
     stopLivenessTimers();
+
+    restoreActionButtonsAfterFailure();
 
 
     /*
