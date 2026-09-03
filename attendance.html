@@ -600,11 +600,11 @@ function formatActionName(action) {
 
 function updateActionInfo() {
     const messages = {
-        CHECK_IN: "Record your arrival.",
-        TEMP_OUT: "Use after Check In when leaving temporarily.",
-        TEMP_IN: "Use after Temporary Out when returning.",
-        HALF_DAY_OUT: "Leave for the remainder of the day.",
-        CHECK_OUT: "Normal Check Out is available from 3:30 PM onward."
+        CHECK_IN: "Record your arrival. The system will check whether Check In is still required.",
+        TEMP_OUT: "Select this when leaving temporarily. The system will check your previous attendance automatically.",
+        TEMP_IN: "Select this when returning from Temporary Out. The system will check your previous attendance automatically.",
+        HALF_DAY_OUT: "Leave for the remainder of the day. The system will check whether Half-Day Out is allowed.",
+        CHECK_OUT: "Normal Check Out is available from 3:30 PM onward. The system will check the time and your attendance history."
     };
 
     actionInfo.textContent =
@@ -633,10 +633,12 @@ function disableActionButtons() {
 }
 
 function restoreActionButtonsAfterFailure() {
+    /*
+     * All action buttons remain available. The server is the
+     * final authority on whether the selected action is valid.
+     */
     actionButtons.forEach(function(button) {
-        button.disabled =
-            button.getAttribute("data-action") !== selectedAction;
-
+        button.disabled = false;
         button.classList.toggle(
             "active",
             button.getAttribute("data-action") === selectedAction
@@ -648,71 +650,48 @@ function restoreActionButtonsAfterFailure() {
 
 function updateActionsAfterSuccess(action) {
 
+    /*
+     * Do not permanently disable any action. A teacher may select
+     * any option at any time; the system checks today's attendance
+     * history and decides whether that action is allowed.
+     */
     actionButtons.forEach(function(button) {
-        button.classList.remove("active");
         button.disabled = false;
+        button.classList.remove("active");
     });
 
+    /*
+     * Select the most logical next action for convenience, but do
+     * not disable the other choices.
+     */
     if (action === "CHECK_IN") {
         selectedAction = "TEMP_OUT";
-
-        actionButtons.forEach(function(button) {
-            const a = button.getAttribute("data-action");
-
-            if (a === "CHECK_IN" || a === "TEMP_IN") {
-                button.disabled = true;
-            }
-        });
-
         actionInfo.textContent =
-            "Check In recorded. You can now use Temporary Out, Half-Day Out or Check Out when permitted.";
+            "Check In recorded. Select any option; the system will automatically check what is allowed next.";
 
     } else if (action === "TEMP_OUT") {
         selectedAction = "TEMP_IN";
-
-        actionButtons.forEach(function(button) {
-            const a = button.getAttribute("data-action");
-
-            if (a === "CHECK_IN" || a === "TEMP_OUT") {
-                button.disabled = true;
-            }
-        });
-
         actionInfo.textContent =
-            "Temporary Out recorded. Temporary In is now the next temporary-movement action.";
+            "Temporary Out recorded. Select Temporary In to return, or choose another option and the system will validate it.";
 
     } else if (action === "TEMP_IN") {
         selectedAction = "TEMP_OUT";
-
-        actionButtons.forEach(function(button) {
-            if (button.getAttribute("data-action") === "CHECK_IN") {
-                button.disabled = true;
-            }
-        });
-
         actionInfo.textContent =
-            "Temporary In recorded. You may use Temporary Out again or finish the day.";
+            "Temporary In recorded. You can use Temporary Out again or choose Half-Day Out / Check Out when permitted.";
 
     } else if (action === "HALF_DAY_OUT") {
         selectedAction = "HALF_DAY_OUT";
-        disableActionButtons();
-
         actionInfo.textContent =
-            "Half-Day Out recorded. No further attendance action is required today.";
+            "Half-Day Out recorded. The system will prevent any further attendance action today.";
 
     } else if (action === "CHECK_OUT") {
         selectedAction = "CHECK_OUT";
-        disableActionButtons();
-
         actionInfo.textContent =
-            "Check Out recorded. Attendance for today is closed.";
+            "Check Out recorded. The system will prevent any further attendance action today.";
     }
 
     actionButtons.forEach(function(button) {
-        if (
-            button.getAttribute("data-action") === selectedAction &&
-            !button.disabled
-        ) {
+        if (button.getAttribute("data-action") === selectedAction) {
             button.classList.add("active");
         }
     });
