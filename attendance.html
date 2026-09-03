@@ -175,6 +175,27 @@ button:disabled {
     color: #8a4b00;
 }
 
+.info {
+    display: block;
+    background: #e8f0fe;
+    color: #174ea6;
+}
+
+.locationBox {
+    display: none;
+    margin-top: 15px;
+    padding: 15px;
+    border-radius: 12px;
+    text-align: center;
+    background: #e8f0fe;
+    color: #174ea6;
+    line-height: 1.5;
+}
+
+.locationBox strong {
+    font-size: 17px;
+}
+
 .small {
     font-size: 12px;
     color: #777;
@@ -250,6 +271,11 @@ Tap Start Attendance.
 </div>
 
 
+<div id="locationBox"
+     class="locationBox">
+</div>
+
+
 <button id="retryButton"
         class="retryButton">
 
@@ -266,6 +292,7 @@ Try Again
 <div class="small">
 
 Face authentication is performed in the browser.
+Your location is checked before attendance is recorded.
 
 </div>
 
@@ -282,33 +309,62 @@ Face authentication is performed in the browser.
    CONFIGURATION
 ========================================================= */
 
+
+/*
+ * Google Apps Script Web App
+ */
+
 const APPS_SCRIPT_URL =
 "https://script.google.com/macros/s/AKfycbzT-N64qGREd32KdznpyibHANy3VwJh25k2oeQ9hwVkLyAldKzDb5mB6ZHLXzvQ-DbC8A/exec";
 
+
+/*
+ * face-api.js model location
+ */
 
 const MODEL_URL =
 "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights";
 
 
-/*
- * Face recognition threshold.
- *
- * Smaller distance = better match.
- */
+/* =========================================================
+   SCHOOL LOCATION
+========================================================= */
 
-const MATCH_THRESHOLD = 0.50;
+const SCHOOL_LATITUDE =
+34.47299827097589;
 
 
-/*
- * Maximum liveness time.
- */
-
-const LIVENESS_TIMEOUT = 25000;
+const SCHOOL_LONGITUDE =
+74.38414223492146;
 
 
 /*
- * Face detection.
+ * Staff must be within this distance.
  */
+
+const GEO_RADIUS_METERS =
+100;
+
+
+/*
+ * Maximum GPS uncertainty we accept.
+ */
+
+const MAX_GPS_ACCURACY_METERS =
+100;
+
+
+/* =========================================================
+   FACE CONFIGURATION
+========================================================= */
+
+const MATCH_THRESHOLD =
+0.50;
+
+
+const LIVENESS_TIMEOUT =
+25000;
+
 
 const DETECTOR_OPTIONS =
 new faceapi.TinyFaceDetectorOptions({
@@ -329,35 +385,42 @@ document.getElementById(
     "startButton"
 );
 
+
 const retryButton =
 document.getElementById(
     "retryButton"
 );
+
 
 const cameraBox =
 document.getElementById(
     "cameraBox"
 );
 
+
 const video =
 document.getElementById(
     "video"
 );
+
 
 const status =
 document.getElementById(
     "status"
 );
 
+
 const instruction =
 document.getElementById(
     "instruction"
 );
 
+
 const progressBar =
 document.getElementById(
     "progressBar"
 );
+
 
 const resultBox =
 document.getElementById(
@@ -365,50 +428,96 @@ document.getElementById(
 );
 
 
+const locationBox =
+document.getElementById(
+    "locationBox"
+);
+
+
 /* =========================================================
    VARIABLES
 ========================================================= */
 
-let modelsLoaded = false;
-
-let registeredFaces = [];
-
-let cameraStream = null;
-
-let running = false;
-
-let processing = false;
-
-let detectionBusy = false;
+let modelsLoaded =
+false;
 
 
-/*
- * Liveness stages.
- */
-
-let livenessStage = "IDLE";
-
-let livenessTimer = null;
-
-let livenessTimeoutTimer = null;
+let registeredFaces =
+[];
 
 
-/*
- * Initial face position.
- */
+let cameraStream =
+null;
 
-let centerX = null;
+
+let running =
+false;
+
+
+let processing =
+false;
+
+
+let detectionBusy =
+false;
 
 
 /*
- * Movement detection.
+ * Liveness.
  */
 
-let movementDetected = false;
+let livenessStage =
+"IDLE";
+
+
+let livenessTimer =
+null;
+
+
+let livenessTimeoutTimer =
+null;
+
+
+/*
+ * Centre position.
+ */
+
+let centerX =
+null;
+
+
+/*
+ * Movement.
+ */
+
+let movementDetected =
+false;
+
+
+/*
+ * Current verified location.
+ *
+ * These values are sent to Apps Script.
+ */
+
+let currentLatitude =
+null;
+
+
+let currentLongitude =
+null;
+
+
+let currentAccuracy =
+null;
+
+
+let currentDistance =
+null;
 
 
 /* =========================================================
-   START
+   START BUTTON
 ========================================================= */
 
 startButton.addEventListener(
@@ -418,7 +527,7 @@ startButton.addEventListener(
 
 
 /* =========================================================
-   RETRY
+   RETRY BUTTON
 ========================================================= */
 
 retryButton.addEventListener(
@@ -430,7 +539,7 @@ retryButton.addEventListener(
         retryButton.style.display =
             "none";
 
-        startLiveness();
+        startAttendance();
 
     }
 );
@@ -446,32 +555,208 @@ async function startAttendance() {
         return;
     }
 
-    running = true;
 
-    processing = true;
+    running =
+        true;
 
-    startButton.disabled = true;
 
-    retryButton.style.display = "none";
+    processing =
+        true;
+
+
+    startButton.disabled =
+        true;
+
+
+    retryButton.style.display =
+        "none";
+
 
     clearResult();
 
+
+    clearLocation();
+
+
     setProgress(0);
 
+
     status.textContent =
-        "Preparing face recognition...";
+        "Checking your location...";
+
 
     instruction.textContent =
-        "Please wait.";
+        "Please allow location access if requested.";
+
 
     try {
 
+
+        /*
+         * STEP 1
+         * Get current GPS location.
+         */
+
+        const location =
+            await getCurrentLocation();
+
+
+        currentLatitude =
+            location.latitude;
+
+
+        currentLongitude =
+            location.longitude;
+
+
+        currentAccuracy =
+            location.accuracy;
+
+
+        /*
+         * Calculate distance on the browser.
+         */
+
+        currentDistance =
+            calculateDistanceMeters(
+                currentLatitude,
+                currentLongitude,
+                SCHOOL_LATITUDE,
+                SCHOOL_LONGITUDE
+            );
+
+
+        console.log(
+            "Latitude:",
+            currentLatitude
+        );
+
+
+        console.log(
+            "Longitude:",
+            currentLongitude
+        );
+
+
+        console.log(
+            "GPS Accuracy:",
+            currentAccuracy
+        );
+
+
+        console.log(
+            "Distance:",
+            currentDistance
+        );
+
+
+        /*
+         * STEP 2
+         * Check GPS accuracy.
+         */
+
+        if (
+            currentAccuracy >
+            MAX_GPS_ACCURACY_METERS
+        ) {
+
+            throw new Error(
+
+                "GPS accuracy is too low (" +
+
+                Math.round(
+                    currentAccuracy
+                ) +
+
+                " metres). " +
+
+                "Please move to an open area and try again."
+
+            );
+
+        }
+
+
+        /*
+         * STEP 3
+         * Check school geofence.
+         */
+
+        if (
+            currentDistance >
+            GEO_RADIUS_METERS
+        ) {
+
+
+            showLocationStatus(
+                false
+            );
+
+
+            throw new Error(
+
+                "Attendance is only allowed within " +
+
+                GEO_RADIUS_METERS +
+
+                " metres of the school. " +
+
+                "Your current distance is approximately " +
+
+                Math.round(
+                    currentDistance
+                ) +
+
+                " metres."
+
+            );
+
+        }
+
+
+        /*
+         * Location is valid.
+         */
+
+        showLocationStatus(
+            true
+        );
+
+
+        setProgress(10);
+
+
+        status.textContent =
+            "Location verified.";
+
+
+        instruction.textContent =
+            "Starting camera...";
+
+
+        /*
+         * STEP 4
+         * Load face models.
+         */
+
         await loadFaceModels();
+
+
+        /*
+         * STEP 5
+         * Load registered faces.
+         */
 
         status.textContent =
             "Loading registered staff...";
 
+
+        instruction.textContent =
+            "Please wait.";
+
+
         await loadRegisteredFaces();
+
 
         if (
             registeredFaces.length === 0
@@ -483,8 +768,19 @@ async function startAttendance() {
 
         }
 
+
+        /*
+         * STEP 6
+         * Start camera.
+         */
+
         status.textContent =
             "Starting camera...";
+
+
+        instruction.textContent =
+            "Please wait.";
+
 
         cameraStream =
             await navigator.mediaDevices
@@ -492,7 +788,8 @@ async function startAttendance() {
 
                     video: {
 
-                        facingMode: "user",
+                        facingMode:
+                            "user",
 
                         width: {
                             ideal: 640
@@ -508,42 +805,394 @@ async function startAttendance() {
 
                 });
 
+
         video.srcObject =
             cameraStream;
+
 
         cameraBox.style.display =
             "block";
 
+
         await waitForVideo();
 
-        processing = false;
+
+        processing =
+            false;
+
+
+        /*
+         * STEP 7
+         * Start face liveness.
+         */
 
         startLiveness();
+
 
     }
 
     catch (error) {
 
-        console.error(error);
 
-        running = false;
+        console.error(
+            error
+        );
 
-        processing = false;
 
-        startButton.disabled = false;
+        running =
+            false;
+
+
+        processing =
+            false;
+
+
+        stopCamera();
+
+
+        startButton.disabled =
+            false;
+
 
         status.textContent =
-            "Unable to start.";
+            "Unable to start attendance.";
 
-        instruction.textContent = "";
+
+        instruction.textContent =
+            "";
+
 
         showResult(
-            error.message ||
-            "Unable to start attendance.",
+
+            "<h2>Attendance Not Started</h2>" +
+
+            "<p>" +
+            escapeHtml(
+                error.message ||
+                "Unable to start attendance."
+            ) +
+            "</p>",
+
             "error"
+
         );
 
     }
+
+}
+
+
+/* =========================================================
+   GET LOCATION
+========================================================= */
+
+function getCurrentLocation() {
+
+    return new Promise(
+        function(resolve, reject) {
+
+
+            /*
+             * Browser does not support geolocation.
+             */
+
+            if (
+                !navigator.geolocation
+            ) {
+
+                reject(
+                    new Error(
+                        "This browser does not support location services."
+                    )
+                );
+
+                return;
+
+            }
+
+
+            navigator.geolocation.getCurrentPosition(
+
+                function(position) {
+
+
+                    if (
+                        !position ||
+                        !position.coords
+                    ) {
+
+                        reject(
+                            new Error(
+                                "Unable to read your location."
+                            )
+                        );
+
+                        return;
+
+                    }
+
+
+                    resolve({
+
+                        latitude:
+                            position.coords.latitude,
+
+                        longitude:
+                            position.coords.longitude,
+
+                        accuracy:
+                            position.coords.accuracy
+
+                    });
+
+                },
+
+
+                function(error) {
+
+
+                    let message =
+                        "Unable to obtain your location.";
+
+
+                    if (
+                        error.code ===
+                        error.PERMISSION_DENIED
+                    ) {
+
+                        message =
+                            "Location permission was denied. Please allow location access for this website and try again.";
+
+                    }
+
+                    else if (
+                        error.code ===
+                        error.POSITION_UNAVAILABLE
+                    ) {
+
+                        message =
+                            "Your location is currently unavailable. Please make sure Location Services are enabled and try again.";
+
+                    }
+
+                    else if (
+                        error.code ===
+                        error.TIMEOUT
+                    ) {
+
+                        message =
+                            "Location request timed out. Please try again.";
+
+                    }
+
+
+                    reject(
+                        new Error(
+                            message
+                        )
+                    );
+
+                },
+
+
+                {
+
+                    /*
+                     * Ask for the most accurate
+                     * location available.
+                     */
+
+                    enableHighAccuracy:
+                        true,
+
+                    timeout:
+                        15000,
+
+                    maximumAge:
+                        0
+
+                }
+
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================================================
+   SHOW LOCATION STATUS
+========================================================= */
+
+function showLocationStatus(
+    allowed
+) {
+
+
+    locationBox.style.display =
+        "block";
+
+
+    if (allowed) {
+
+
+        locationBox.innerHTML =
+
+            "<strong>Location Verified</strong>" +
+
+            "<br>" +
+
+            "You are approximately " +
+
+            "<strong>" +
+
+            Math.round(
+                currentDistance
+            ) +
+
+            " metres</strong> from the attendance location." +
+
+            "<br>" +
+
+            "<small>GPS accuracy: approximately " +
+
+            Math.round(
+                currentAccuracy
+            ) +
+
+            " metres</small>";
+
+    }
+
+    else {
+
+
+        locationBox.innerHTML =
+
+            "<strong>Location Not Allowed</strong>" +
+
+            "<br>" +
+
+            "You are approximately " +
+
+            Math.round(
+                currentDistance
+            ) +
+
+            " metres from the attendance location.";
+
+    }
+
+}
+
+
+/* =========================================================
+   CLEAR LOCATION
+========================================================= */
+
+function clearLocation() {
+
+    locationBox.style.display =
+        "none";
+
+
+    locationBox.innerHTML =
+        "";
+
+
+    currentLatitude =
+        null;
+
+
+    currentLongitude =
+        null;
+
+
+    currentAccuracy =
+        null;
+
+
+    currentDistance =
+        null;
+
+}
+
+
+/* =========================================================
+   HAVERSINE DISTANCE
+========================================================= */
+
+function calculateDistanceMeters(
+    lat1,
+    lon1,
+    lat2,
+    lon2
+) {
+
+
+    const earthRadius =
+        6371000;
+
+
+    const toRadians =
+        function(degrees) {
+
+            return degrees *
+                Math.PI /
+                180;
+
+        };
+
+
+    const dLat =
+        toRadians(
+            lat2 - lat1
+        );
+
+
+    const dLon =
+        toRadians(
+            lon2 - lon1
+        );
+
+
+    const a =
+
+        Math.sin(
+            dLat / 2
+        ) *
+
+        Math.sin(
+            dLat / 2
+        ) +
+
+        Math.cos(
+            toRadians(lat1)
+        ) *
+
+        Math.cos(
+            toRadians(lat2)
+        ) *
+
+        Math.sin(
+            dLon / 2
+        ) *
+
+        Math.sin(
+            dLon / 2
+        );
+
+
+    const c =
+        2 *
+        Math.atan2(
+            Math.sqrt(a),
+            Math.sqrt(1 - a)
+        );
+
+
+    return earthRadius * c;
 
 }
 
@@ -554,38 +1203,51 @@ async function startAttendance() {
 
 async function loadFaceModels() {
 
-    if (modelsLoaded) {
+
+    if (
+        modelsLoaded
+    ) {
+
         return;
+
     }
+
 
     status.textContent =
         "Loading face detector...";
 
+
     await faceapi.nets
-    .tinyFaceDetector
-    .loadFromUri(
-        MODEL_URL
-    );
+        .tinyFaceDetector
+        .loadFromUri(
+            MODEL_URL
+        );
 
-status.textContent =
-    "Loading face landmarks...";
 
-await faceapi.nets
-    .faceLandmark68TinyNet
-    .loadFromUri(
-        MODEL_URL
-    );
+    status.textContent =
+        "Loading face landmarks...";
 
-status.textContent =
-    "Loading face recognition...";
 
-await faceapi.nets
-    .faceRecognitionNet
-    .loadFromUri(
-        MODEL_URL
-    );
+    await faceapi.nets
+        .faceLandmark68TinyNet
+        .loadFromUri(
+            MODEL_URL
+        );
 
-    modelsLoaded = true;
+
+    status.textContent =
+        "Loading face recognition...";
+
+
+    await faceapi.nets
+        .faceRecognitionNet
+        .loadFromUri(
+            MODEL_URL
+        );
+
+
+    modelsLoaded =
+        true;
 
 }
 
@@ -599,14 +1261,18 @@ function loadRegisteredFaces() {
     return new Promise(
         function(resolve, reject) {
 
+
             const callbackName =
                 "faces_" +
                 Date.now();
 
+
             window[callbackName] =
                 function(data) {
 
+
                     try {
+
 
                         if (
                             !data.success
@@ -619,12 +1285,15 @@ function loadRegisteredFaces() {
 
                         }
 
+
                         registeredFaces =
                             data.faces || [];
+
 
                         registeredFaces =
                             registeredFaces.filter(
                                 function(person) {
+
 
                                     if (
                                         !person ||
@@ -636,6 +1305,7 @@ function loadRegisteredFaces() {
 
                                     }
 
+
                                     if (
                                         !Array.isArray(
                                             person.samples
@@ -645,6 +1315,7 @@ function loadRegisteredFaces() {
                                         return false;
 
                                     }
+
 
                                     return person.samples.some(
                                         function(sample) {
@@ -660,6 +1331,7 @@ function loadRegisteredFaces() {
                                 }
                             );
 
+
                         resolve();
 
                     }
@@ -672,17 +1344,24 @@ function loadRegisteredFaces() {
 
                     finally {
 
+
                         delete window[
                             callbackName
                         ];
+
 
                         const script =
                             document.getElementById(
                                 callbackName
                             );
 
-                        if (script) {
+
+                        if (
+                            script
+                        ) {
+
                             script.remove();
+
                         }
 
                     }
@@ -702,8 +1381,11 @@ function loadRegisteredFaces() {
 
             script.src =
                 APPS_SCRIPT_URL +
+
                 "?action=getFaces" +
+
                 "&callback=" +
+
                 encodeURIComponent(
                     callbackName
                 );
@@ -712,11 +1394,14 @@ function loadRegisteredFaces() {
             script.onerror =
                 function() {
 
+
                     delete window[
                         callbackName
                     ];
 
+
                     script.remove();
+
 
                     reject(
                         new Error(
@@ -746,30 +1431,44 @@ function waitForVideo() {
     return new Promise(
         function(resolve) {
 
-            let attempts = 0;
+
+            let attempts =
+                0;
+
 
             const timer =
                 setInterval(
                     function() {
 
+
                         attempts++;
+
 
                         if (
                             video.readyState >= 2 &&
                             video.videoWidth > 0
                         ) {
 
-                            clearInterval(timer);
+
+                            clearInterval(
+                                timer
+                            );
+
 
                             resolve();
 
                         }
 
+
                         if (
                             attempts > 50
                         ) {
 
-                            clearInterval(timer);
+
+                            clearInterval(
+                                timer
+                            );
+
 
                             resolve();
 
@@ -791,34 +1490,48 @@ function waitForVideo() {
 
 function startLiveness() {
 
+
     stopLivenessTimers();
 
-    livenessStage = "CENTER";
 
-    centerX = null;
+    livenessStage =
+        "CENTER";
 
-    movementDetected = false;
 
-    detectionBusy = false;
+    centerX =
+        null;
 
-    running = true;
 
-    processing = false;
+    movementDetected =
+        false;
 
-    retryButton.style.display = "none";
+
+    detectionBusy =
+        false;
+
+
+    running =
+        true;
+
+
+    processing =
+        false;
+
+
+    retryButton.style.display =
+        "none";
+
 
     status.textContent =
         "Looking for your face...";
 
+
     instruction.textContent =
         "Position your face inside the oval.";
 
-    setProgress(5);
 
-    /*
-     * Check approximately 4 times per second.
-     * The detectionBusy flag prevents overlap.
-     */
+    setProgress(15);
+
 
     livenessTimer =
         setInterval(
@@ -826,15 +1539,13 @@ function startLiveness() {
             250
         );
 
-    /*
-     * Maximum 25 seconds.
-     */
 
     livenessTimeoutTimer =
         setTimeout(
             livenessFailed,
-            25000
+            LIVENESS_TIMEOUT
         );
+
 }
 
 
@@ -844,23 +1555,24 @@ function startLiveness() {
 
 async function checkLiveness() {
 
+
     if (
         !running ||
         processing ||
         detectionBusy
     ) {
+
         return;
+
     }
 
-    detectionBusy = true;
+
+    detectionBusy =
+        true;
+
 
     try {
 
-        /*
-         * Detect face only.
-         *
-         * We do not use blink or landmarks here.
-         */
 
         const detection =
             await faceapi.detectSingleFace(
@@ -870,27 +1582,34 @@ async function checkLiveness() {
 
 
         /*
-         * No face detected.
+         * Face not detected.
          *
-         * Keep camera open.
+         * Camera remains open.
          */
 
-        if (!detection) {
+        if (
+            !detection
+        ) {
+
 
             if (
-                livenessStage === "CENTER" ||
-                livenessStage === "MOVE"
+                livenessStage ===
+                "CENTER"
             ) {
+
 
                 status.textContent =
                     "Looking for your face...";
+
 
                 instruction.textContent =
                     "Position your face inside the oval.";
 
             }
 
+
             return;
+
         }
 
 
@@ -899,7 +1618,7 @@ async function checkLiveness() {
 
 
         /*
-         * Calculate horizontal centre of face.
+         * Face horizontal centre.
          */
 
         const faceX =
@@ -911,36 +1630,42 @@ async function checkLiveness() {
 
 
         /* =================================================
-           STAGE 1
-           ESTABLISH CENTER
+           CENTER
         ================================================= */
 
         if (
-            livenessStage === "CENTER"
+            livenessStage ===
+            "CENTER"
         ) {
+
 
             if (
                 centerX === null
             ) {
 
+
                 centerX =
                     faceX;
+
 
                 status.textContent =
                     "Face detected.";
 
+
                 instruction.textContent =
                     "Keep looking at the camera.";
 
-                setProgress(20);
+
+                setProgress(25);
+
 
                 return;
+
             }
 
 
             /*
-             * Use a few stable frames before
-             * starting the movement test.
+             * Move to next stage.
              */
 
             livenessStage =
@@ -950,23 +1675,28 @@ async function checkLiveness() {
             status.textContent =
                 "Face detected.";
 
+
             instruction.textContent =
                 "Move your face slightly to either side.";
 
+
             setProgress(30);
 
+
             return;
+
         }
 
 
         /* =================================================
-           STAGE 2
            MOVE
         ================================================= */
 
         if (
-            livenessStage === "MOVE"
+            livenessStage ===
+            "MOVE"
         ) {
+
 
             const movement =
                 Math.abs(
@@ -976,15 +1706,15 @@ async function checkLiveness() {
 
 
             /*
-             * Only require about 5.5% movement
-             * across the camera width.
-             *
-             * Either direction is accepted.
+             * Approximately 5.5% of the
+             * camera width.
              */
 
             if (
-                movement > 0.055
+                movement >
+                0.055
             ) {
+
 
                 movementDetected =
                     true;
@@ -997,25 +1727,30 @@ async function checkLiveness() {
                 status.textContent =
                     "Movement detected.";
 
+
                 instruction.textContent =
                     "Now return your face to the centre.";
+
 
                 setProgress(60);
 
             }
 
+
             return;
+
         }
 
 
         /* =================================================
-           STAGE 3
-           RETURN TO CENTER
+           RETURN
         ================================================= */
 
         if (
-            livenessStage === "RETURN"
+            livenessStage ===
+            "RETURN"
         ) {
+
 
             const movement =
                 Math.abs(
@@ -1025,15 +1760,14 @@ async function checkLiveness() {
 
 
             /*
-             * Accept a reasonably broad centre area.
-             *
-             * We don't require the exact original
-             * pixel position.
+             * Broad centre tolerance.
              */
 
             if (
-                movement < 0.12
+                movement <
+                0.12
             ) {
+
 
                 livenessStage =
                     "VERIFY";
@@ -1042,19 +1776,16 @@ async function checkLiveness() {
                 status.textContent =
                     "Liveness verified.";
 
+
                 instruction.textContent =
                     "Verifying your face...";
+
 
                 setProgress(85);
 
 
                 stopLivenessTimers();
 
-
-                /*
-                 * Small delay allows the face to
-                 * settle before descriptor capture.
-                 */
 
                 setTimeout(
                     verifyFace,
@@ -1063,12 +1794,15 @@ async function checkLiveness() {
 
             }
 
+
             return;
+
         }
 
     }
 
     catch (error) {
+
 
         console.error(
             "Liveness error:",
@@ -1083,6 +1817,7 @@ async function checkLiveness() {
             false;
 
     }
+
 }
 
 
@@ -1092,34 +1827,53 @@ async function checkLiveness() {
 
 async function verifyFace() {
 
-    if (!running) {
+
+    if (
+        !running
+    ) {
+
         return;
+
     }
 
-    processing = true;
+
+    processing =
+        true;
+
 
     status.textContent =
         "Matching your face...";
 
+
     instruction.textContent =
         "Please keep still.";
+
 
     setProgress(90);
 
 
     try {
 
+
+        /*
+         * Detect face + landmarks +
+         * face descriptor.
+         */
+
         const detection =
-    await faceapi
-        .detectSingleFace(
-            video,
-            DETECTOR_OPTIONS
-        )
-        .withFaceLandmarks(true)
-        .withFaceDescriptor();
+            await faceapi
+                .detectSingleFace(
+                    video,
+                    DETECTOR_OPTIONS
+                )
+                .withFaceLandmarks(true)
+                .withFaceDescriptor();
 
 
-        if (!detection) {
+        if (
+            !detection
+        ) {
+
 
             throw new Error(
                 "Face was lost. Please try again."
@@ -1143,12 +1897,13 @@ async function verifyFace() {
 
 
         /*
-         * Compare against every registered
-         * staff member and every sample.
+         * Compare the live face with
+         * every sample of every staff member.
          */
 
         registeredFaces.forEach(
             function(person) {
+
 
                 if (
                     !Array.isArray(
@@ -1163,6 +1918,7 @@ async function verifyFace() {
 
                 person.samples.forEach(
                     function(sample) {
+
 
                         if (
                             !Array.isArray(sample) ||
@@ -1193,8 +1949,10 @@ async function verifyFace() {
                             bestDistance
                         ) {
 
+
                             bestDistance =
                                 distance;
+
 
                             bestMatch =
                                 person;
@@ -1230,11 +1988,14 @@ async function verifyFace() {
             MATCH_THRESHOLD
         ) {
 
+
             status.textContent =
                 "Face not recognized.";
 
+
             instruction.textContent =
                 "Please try again.";
+
 
             showResult(
 
@@ -1243,9 +2004,11 @@ async function verifyFace() {
                 "<p>No registered staff member matched your face.</p>" +
 
                 "<p>Match distance: " +
+
                 Number(
                     bestDistance
                 ).toFixed(4) +
+
                 "</p>",
 
                 "error"
@@ -1255,20 +2018,23 @@ async function verifyFace() {
 
             resetAfterFailure();
 
+
             return;
 
         }
 
 
         /*
-         * Face recognized.
+         * Face successfully recognized.
          */
 
         status.textContent =
             "Face verified.";
 
+
         instruction.textContent =
             "Recording attendance...";
+
 
         setProgress(95);
 
@@ -1282,19 +2048,37 @@ async function verifyFace() {
 
     catch (error) {
 
-        console.error(error);
+
+        console.error(
+            error
+        );
+
 
         status.textContent =
             "Verification failed.";
 
+
         instruction.textContent =
             "Please try again.";
 
+
         showResult(
-            error.message ||
-            "Unable to verify face.",
+
+            "<h2>Verification Failed</h2>" +
+
+            "<p>" +
+
+            escapeHtml(
+                error.message ||
+                "Unable to verify face."
+            ) +
+
+            "</p>",
+
             "error"
+
         );
+
 
         resetAfterFailure();
 
@@ -1312,6 +2096,90 @@ function sendAttendance(
     distanceValue
 ) {
 
+
+    /*
+     * Make absolutely sure location exists
+     * before sending attendance.
+     */
+
+    if (
+        currentLatitude === null ||
+        currentLongitude === null ||
+        currentAccuracy === null
+    ) {
+
+
+        showResult(
+
+            "<h2>Location Missing</h2>" +
+
+            "<p>Your location could not be verified.</p>" +
+
+            "<p>Please try again.</p>",
+
+            "error"
+
+        );
+
+
+        resetAfterFailure();
+
+
+        return;
+
+    }
+
+
+    /*
+     * Final browser-side geofence check.
+     */
+
+    currentDistance =
+        calculateDistanceMeters(
+            currentLatitude,
+            currentLongitude,
+            SCHOOL_LATITUDE,
+            SCHOOL_LONGITUDE
+        );
+
+
+    if (
+        currentDistance >
+        GEO_RADIUS_METERS
+    ) {
+
+
+        showResult(
+
+            "<h2>Location Not Allowed</h2>" +
+
+            "<p>You are approximately " +
+
+            Math.round(
+                currentDistance
+            ) +
+
+            " metres from the attendance location.</p>" +
+
+            "<p>Attendance is allowed within " +
+
+            GEO_RADIUS_METERS +
+
+            " metres.</p>",
+
+            "error"
+
+        );
+
+
+        resetAfterFailure();
+
+
+        return;
+
+    }
+
+
     const callbackName =
         "attendance_" +
         Date.now();
@@ -1320,21 +2188,26 @@ function sendAttendance(
     window[callbackName] =
         function(data) {
 
+
             try {
 
+
                 /*
-                 * Successful attendance.
+                 * Attendance successful.
                  */
 
                 if (
                     data.success
                 ) {
 
+
                     status.textContent =
                         "Attendance recorded.";
 
+
                     instruction.textContent =
                         "";
+
 
                     setProgress(100);
 
@@ -1344,21 +2217,27 @@ function sendAttendance(
                         "<h2>Attendance Marked</h2>" +
 
                         "<p><strong>" +
+
                         escapeHtml(
                             person.staffName
                         ) +
+
                         "</strong></p>" +
 
                         "<p>Date: " +
+
                         escapeHtml(
                             data.date
                         ) +
+
                         "</p>" +
 
                         "<p>Time: " +
+
                         escapeHtml(
                             data.time
                         ) +
+
                         "</p>",
 
                         "success"
@@ -1372,8 +2251,62 @@ function sendAttendance(
                     running =
                         false;
 
+
                     processing =
                         false;
+
+
+                    startButton.disabled =
+                        false;
+
+                }
+
+
+                /*
+                 * Location rejected by server.
+                 */
+
+                else if (
+                    data.locationDenied
+                ) {
+
+
+                    status.textContent =
+                        "Location not allowed.";
+
+
+                    instruction.textContent =
+                        "";
+
+
+                    showResult(
+
+                        "<h2>Location Not Allowed</h2>" +
+
+                        "<p>" +
+
+                        escapeHtml(
+                            data.message ||
+                            "Attendance is not allowed at your current location."
+                        ) +
+
+                        "</p>",
+
+                        "error"
+
+                    );
+
+
+                    stopCamera();
+
+
+                    running =
+                        false;
+
+
+                    processing =
+                        false;
+
 
                     startButton.disabled =
                         false;
@@ -1389,8 +2322,10 @@ function sendAttendance(
                     data.duplicate
                 ) {
 
+
                     status.textContent =
                         "Attendance already marked.";
+
 
                     instruction.textContent =
                         "";
@@ -1401,15 +2336,19 @@ function sendAttendance(
                         "<h2>Already Marked</h2>" +
 
                         "<p>" +
+
                         escapeHtml(
                             data.message
                         ) +
+
                         "</p>" +
 
                         "<p>First attendance time: " +
+
                         escapeHtml(
                             data.time
                         ) +
+
                         "</p>",
 
                         "warning"
@@ -1423,8 +2362,10 @@ function sendAttendance(
                     running =
                         false;
 
+
                     processing =
                         false;
+
 
                     startButton.disabled =
                         false;
@@ -1438,8 +2379,10 @@ function sendAttendance(
 
                 else {
 
+
                     status.textContent =
                         "Attendance failed.";
+
 
                     showResult(
 
@@ -1450,6 +2393,7 @@ function sendAttendance(
 
                     );
 
+
                     resetAfterFailure();
 
                 }
@@ -1457,6 +2401,7 @@ function sendAttendance(
             }
 
             finally {
+
 
                 delete window[
                     callbackName
@@ -1469,8 +2414,12 @@ function sendAttendance(
                     );
 
 
-                if (script) {
+                if (
+                    script
+                ) {
+
                     script.remove();
+
                 }
 
             }
@@ -1478,38 +2427,79 @@ function sendAttendance(
         };
 
 
+    /*
+     * Liveness + face verification.
+     */
+
     const verification =
         "FACE_MATCH_" +
+
         Number(
             distanceValue
         ).toFixed(4) +
+
         "_LIVENESS_OK";
 
 
+    /*
+     * Build Apps Script URL.
+     *
+     * Location information is included.
+     */
+
     const url =
+
         APPS_SCRIPT_URL +
 
         "?action=faceAttendance" +
 
         "&staffId=" +
+
         encodeURIComponent(
             person.staffId
         ) +
 
         "&verification=" +
+
         encodeURIComponent(
             verification
         ) +
 
         "&device=" +
+
         encodeURIComponent(
             getDevice()
         ) +
 
+        "&latitude=" +
+
+        encodeURIComponent(
+            currentLatitude
+        ) +
+
+        "&longitude=" +
+
+        encodeURIComponent(
+            currentLongitude
+        ) +
+
+        "&accuracy=" +
+
+        encodeURIComponent(
+            currentAccuracy
+        ) +
+
         "&callback=" +
+
         encodeURIComponent(
             callbackName
         );
+
+
+    console.log(
+        "Attendance request:",
+        url
+    );
 
 
     const script =
@@ -1529,9 +2519,11 @@ function sendAttendance(
     script.onerror =
         function() {
 
+
             delete window[
                 callbackName
             ];
+
 
             script.remove();
 
@@ -1541,8 +2533,15 @@ function sendAttendance(
 
 
             showResult(
-                "Unable to connect to the attendance server.",
+
+                "<h2>Connection Failed</h2>" +
+
+                "<p>Unable to connect to the attendance server.</p>" +
+
+                "<p>Please try again.</p>",
+
                 "error"
+
             );
 
 
@@ -1559,10 +2558,11 @@ function sendAttendance(
 
 
 /* =========================================================
-   LIVENESS FAILED
+   LIVENESS FAILURE
 ========================================================= */
 
 function livenessFailed() {
+
 
     if (
         !running ||
@@ -1589,9 +2589,9 @@ function livenessFailed() {
 
         "<h2>Try Again</h2>" +
 
-        "<p>The movement check was not completed.</p>" +
+        "<p>The face movement check was not completed.</p>" +
 
-        "<p>Move your face clearly from one side to the other and then return to the centre.</p>",
+        "<p>Move your face slightly to either side and then return to the centre.</p>",
 
         "warning"
 
@@ -1599,6 +2599,8 @@ function livenessFailed() {
 
 
     /*
+     * IMPORTANT:
+     *
      * Camera remains open.
      */
 
@@ -1617,6 +2619,7 @@ function livenessFailed() {
 ========================================================= */
 
 function resetAfterFailure() {
+
 
     stopLivenessTimers();
 
@@ -1644,18 +2647,21 @@ function resetAfterFailure() {
 
 
 /* =========================================================
-   STOP TIMERS
+   STOP LIVENESS TIMERS
 ========================================================= */
 
 function stopLivenessTimers() {
+
 
     if (
         livenessTimer
     ) {
 
+
         clearInterval(
             livenessTimer
         );
+
 
         livenessTimer =
             null;
@@ -1667,9 +2673,11 @@ function stopLivenessTimers() {
         livenessTimeoutTimer
     ) {
 
+
         clearTimeout(
             livenessTimeoutTimer
         );
+
 
         livenessTimeoutTimer =
             null;
@@ -1685,12 +2693,14 @@ function stopLivenessTimers() {
 
 function stopCamera() {
 
+
     stopLivenessTimers();
 
 
     if (
         cameraStream
     ) {
+
 
         cameraStream
             .getTracks()
@@ -1745,8 +2755,10 @@ function showResult(
     resultBox.innerHTML =
         html;
 
+
     resultBox.className =
-        "result " + type;
+        "result " +
+        type;
 
 }
 
@@ -1755,6 +2767,7 @@ function clearResult() {
 
     resultBox.innerHTML =
         "";
+
 
     resultBox.className =
         "result";
@@ -1767,6 +2780,7 @@ function clearResult() {
 ========================================================= */
 
 function getDevice() {
+
 
     const ua =
         navigator.userAgent;
