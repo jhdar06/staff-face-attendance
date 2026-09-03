@@ -578,6 +578,14 @@ null;
    ATTENDANCE ACTIONS
 ========================================================= */
 
+const actionInfo =
+    document.getElementById("actionInfo");
+
+const actionButtons =
+    Array.from(document.querySelectorAll(".actionButton"));
+
+let selectedAction = "CHECK_IN";
+
 const ACTION_NAMES = {
     CHECK_IN: "Check In",
     TEMP_OUT: "Temporary Out",
