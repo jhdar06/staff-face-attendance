@@ -586,6 +586,10 @@ const actionButtons =
 
 let selectedAction = "CHECK_IN";
 
+let attendanceVerified = false;
+let verifiedPerson = null;
+let verifiedDistance = null;
+
 const ACTION_NAMES = {
     CHECK_IN: "Check In",
     TEMP_OUT: "Temporary Out",
@@ -738,6 +742,10 @@ async function startAttendance() {
         return;
     }
 
+    /* Start a fresh authentication session. */
+    attendanceVerified = false;
+    verifiedPerson = null;
+    verifiedDistance = null;
 
     running =
         true;
