@@ -404,9 +404,7 @@ let centerX = null;
  * Movement detection.
  */
 
-let leftMovementDetected = false;
-
-let rightMovementDetected = false;
+let movementDetected = false;
 
 
 /* =========================================================
@@ -795,14 +793,11 @@ function startLiveness() {
 
     stopLivenessTimers();
 
-    livenessStage =
-        "CENTER";
+    livenessStage = "CENTER";
 
     centerX = null;
 
-    leftMovementDetected = false;
-
-    rightMovementDetected = false;
+    movementDetected = false;
 
     detectionBusy = false;
 
@@ -810,20 +805,19 @@ function startLiveness() {
 
     processing = false;
 
-    retryButton.style.display =
-        "none";
+    retryButton.style.display = "none";
 
     status.textContent =
         "Looking for your face...";
 
     instruction.textContent =
-        "Keep your face inside the oval.";
+        "Position your face inside the oval.";
 
     setProgress(5);
 
-
     /*
-     * Sequential detection.
+     * Check approximately 4 times per second.
+     * The detectionBusy flag prevents overlap.
      */
 
     livenessTimer =
@@ -832,7 +826,6 @@ function startLiveness() {
             250
         );
 
-
     /*
      * Maximum 25 seconds.
      */
@@ -840,9 +833,8 @@ function startLiveness() {
     livenessTimeoutTimer =
         setTimeout(
             livenessFailed,
-            LIVENESS_TIMEOUT
+            25000
         );
-
 }
 
 
@@ -857,9 +849,7 @@ async function checkLiveness() {
         processing ||
         detectionBusy
     ) {
-
         return;
-
     }
 
     detectionBusy = true;
@@ -867,10 +857,9 @@ async function checkLiveness() {
     try {
 
         /*
-         * We only need the face bounding box.
+         * Detect face only.
          *
-         * No eye landmarks.
-         * No blink detection.
+         * We do not use blink or landmarks here.
          */
 
         const detection =
@@ -881,22 +870,27 @@ async function checkLiveness() {
 
 
         /*
-         * Face not detected.
+         * No face detected.
          *
-         * IMPORTANT:
          * Keep camera open.
          */
 
         if (!detection) {
 
-            status.textContent =
-                "Looking for your face...";
+            if (
+                livenessStage === "CENTER" ||
+                livenessStage === "MOVE"
+            ) {
 
-            instruction.textContent =
-                "Position your face inside the oval.";
+                status.textContent =
+                    "Looking for your face...";
+
+                instruction.textContent =
+                    "Position your face inside the oval.";
+
+            }
 
             return;
-
         }
 
 
@@ -905,7 +899,7 @@ async function checkLiveness() {
 
 
         /*
-         * Calculate face centre.
+         * Calculate horizontal centre of face.
          */
 
         const faceX =
@@ -918,12 +912,11 @@ async function checkLiveness() {
 
         /* =================================================
            STAGE 1
-           CENTER
+           ESTABLISH CENTER
         ================================================= */
 
         if (
-            livenessStage ===
-            "CENTER"
+            livenessStage === "CENTER"
         ) {
 
             if (
@@ -942,142 +935,37 @@ async function checkLiveness() {
                 setProgress(20);
 
                 return;
-
             }
 
 
             /*
-             * Give the camera several frames
-             * to establish the centre.
+             * Use a few stable frames before
+             * starting the movement test.
              */
 
             livenessStage =
-                "LEFT";
+                "MOVE";
 
 
             status.textContent =
                 "Face detected.";
 
             instruction.textContent =
-                "Move your face slightly to the LEFT.";
+                "Move your face slightly to either side.";
 
             setProgress(30);
 
             return;
-
         }
 
 
         /* =================================================
            STAGE 2
-           LEFT
+           MOVE
         ================================================= */
 
         if (
-            livenessStage ===
-            "LEFT"
-        ) {
-
-            const movement =
-                faceX -
-                centerX;
-
-
-            /*
-             * User moves face to the left.
-             *
-             * Because the camera image is mirrored,
-             * we accept either horizontal direction
-             * here and simply call it "side".
-             */
-
-            if (
-                Math.abs(movement) >
-                0.07
-            ) {
-
-                leftMovementDetected =
-                    true;
-
-
-                livenessStage =
-                    "RIGHT";
-
-
-                status.textContent =
-                    "Good.";
-
-                instruction.textContent =
-                    "Now move your face to the OTHER side.";
-
-                setProgress(50);
-
-            }
-
-            return;
-
-        }
-
-
-        /* =================================================
-           STAGE 3
-           RIGHT / OTHER SIDE
-        ================================================= */
-
-        if (
-            livenessStage ===
-            "RIGHT"
-        ) {
-
-            const movement =
-                faceX -
-                centerX;
-
-
-            /*
-             * Require the face to move to
-             * the opposite side.
-             *
-             * Approximately 14% total movement
-             * from one side to the other.
-             */
-
-            if (
-                Math.abs(movement) >
-                0.13
-            ) {
-
-                rightMovementDetected =
-                    true;
-
-
-                livenessStage =
-                    "RETURN";
-
-
-                status.textContent =
-                    "Good.";
-
-                instruction.textContent =
-                    "Now return your face to the centre.";
-
-                setProgress(70);
-
-            }
-
-            return;
-
-        }
-
-
-        /* =================================================
-           STAGE 4
-           RETURN
-        ================================================= */
-
-        if (
-            livenessStage ===
-            "RETURN"
+            livenessStage === "MOVE"
         ) {
 
             const movement =
@@ -1088,13 +976,63 @@ async function checkLiveness() {
 
 
             /*
-             * Return reasonably close
-             * to original position.
+             * Only require about 5.5% movement
+             * across the camera width.
+             *
+             * Either direction is accepted.
              */
 
             if (
-                movement <
-                0.10
+                movement > 0.055
+            ) {
+
+                movementDetected =
+                    true;
+
+
+                livenessStage =
+                    "RETURN";
+
+
+                status.textContent =
+                    "Movement detected.";
+
+                instruction.textContent =
+                    "Now return your face to the centre.";
+
+                setProgress(60);
+
+            }
+
+            return;
+        }
+
+
+        /* =================================================
+           STAGE 3
+           RETURN TO CENTER
+        ================================================= */
+
+        if (
+            livenessStage === "RETURN"
+        ) {
+
+            const movement =
+                Math.abs(
+                    faceX -
+                    centerX
+                );
+
+
+            /*
+             * Accept a reasonably broad centre area.
+             *
+             * We don't require the exact original
+             * pixel position.
+             */
+
+            if (
+                movement < 0.12
             ) {
 
                 livenessStage =
@@ -1102,7 +1040,7 @@ async function checkLiveness() {
 
 
                 status.textContent =
-                    "Movement verified.";
+                    "Liveness verified.";
 
                 instruction.textContent =
                     "Verifying your face...";
@@ -1113,15 +1051,19 @@ async function checkLiveness() {
                 stopLivenessTimers();
 
 
+                /*
+                 * Small delay allows the face to
+                 * settle before descriptor capture.
+                 */
+
                 setTimeout(
                     verifyFace,
-                    200
+                    250
                 );
 
             }
 
             return;
-
         }
 
     }
@@ -1141,7 +1083,6 @@ async function checkLiveness() {
             false;
 
     }
-
 }
 
 
