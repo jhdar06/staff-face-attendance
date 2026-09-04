@@ -882,48 +882,17 @@ async function startAttendance() {
             );
 
         }
-
-
         /*
          * STEP 3
-         * Check school geofence.
+         * Final geofence validation is performed by Apps Script.
+         * This allows the normal school location OR an Admin-enabled
+         * GPS Test Location to be accepted by the server.
          */
-
-        if (
-            currentDistance >
-            GEO_RADIUS_METERS
-        ) {
-
-
-            showLocationStatus(
-                false
-            );
-
-
-            throw new Error(
-
-                "Attendance is only allowed within " +
-
-                GEO_RADIUS_METERS +
-
-                " metres of the school. " +
-
-                "Your current distance is approximately " +
-
-                Math.round(
-                    currentDistance
-                ) +
-
-                " metres."
-
-            );
-
-        }
-
 
         /*
-         * Location is valid.
+         * Location reading is available.
          */
+        
 
         showLocationStatus(
             true
@@ -2369,60 +2338,14 @@ function sendAttendance(
         return;
 
     }
-
-
     /*
-     * Final browser-side geofence check.
+     * Final geofence validation is performed by Apps Script.
+     * Do not reject the location here because the server may have
+     * an Admin-enabled GPS Test Location.
      */
 
-    currentDistance =
-        calculateDistanceMeters(
-            currentLatitude,
-            currentLongitude,
-            SCHOOL_LATITUDE,
-            SCHOOL_LONGITUDE
-        );
-
-
-    if (
-        currentDistance >
-        GEO_RADIUS_METERS
-    ) {
-
-
-        showResult(
-
-            "<h2>Location Not Allowed</h2>" +
-
-            "<p>You are approximately " +
-
-            Math.round(
-                currentDistance
-            ) +
-
-            " metres from the attendance location.</p>" +
-
-            "<p>Attendance is allowed within " +
-
-            GEO_RADIUS_METERS +
-
-            " metres.</p>",
-
-            "error"
-
-        );
-
-
-        resetAfterFailure();
-
-
-        return;
-
-    }
-
-
     const callbackName =
-        "attendance_" +
+    "attendance_" +
         Date.now();
 
 
