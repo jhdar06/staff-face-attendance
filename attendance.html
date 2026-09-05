@@ -287,7 +287,7 @@ Start Attendance
         <button type="button" class="actionButton" data-action="HALF_DAY_OUT" disabled>Half-Day Out</button>
         <button type="button" class="actionButton" data-action="CHECK_OUT" disabled>Check Out</button>
     </div>
-    <div id="actionInfo" class="action-info">Complete location, face and liveness verification first. All actions will then become available.</div>
+    <div id="actionInfo" class="action-info">Complete location, face and liveness verification first. All actions will become available after verification.</div>
 </div>
 </div>
 
@@ -351,7 +351,7 @@ Try Again
 <div class="small">
 
 Face authentication is performed in the browser.
-Your location is checked before attendance is recorded.
+Your location is checked against the authorized campus zones before attendance is recorded.
 
 </div>
 
@@ -670,17 +670,16 @@ function disableActionButtons() {
 
 function restoreActionButtonsAfterFailure() {
     /*
-     * All action buttons remain available. The server is the
-     * final authority on whether the selected action is valid.
+     * A failed verification must never leave attendance actions
+     * unlocked. A fresh location + face + liveness verification
+     * is required before any action can be recorded.
      */
     actionButtons.forEach(function(button) {
-        button.disabled = false;
-        button.classList.toggle(
-            "active",
-            button.getAttribute("data-action") === selectedAction
-        );
+        button.disabled = true;
+        button.classList.remove("active");
     });
 
+    selectedAction = "CHECK_IN";
     updateActionInfo();
 }
 
@@ -2641,8 +2640,8 @@ function sendAttendance(
     }
     /*
      * Final geofence validation is performed by Apps Script.
-     * Do not reject the location here because the server may have
-     * an Admin-enabled GPS Test Location.
+     * Do not reject the location here because the server checks
+     * the permanent Campus GPS Zones configured by the admin.
      */
 
     const callbackName =
@@ -2709,7 +2708,13 @@ function sendAttendance(
                             data.time
                         ) +
 
-                        "</p>",
+                        "</p>" +
+
+                        (data.locationName
+                            ? "<p>Location: " +
+                              escapeHtml(data.locationName) +
+                              "</p>"
+                            : ""),
 
                         "success"
 
@@ -2724,7 +2729,6 @@ function sendAttendance(
                     running = false;
                     processing = false;
                     startButton.disabled = false;
-                    restoreActionButtonsAfterFailure();
 
                 }
 
