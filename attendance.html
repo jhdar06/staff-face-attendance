@@ -420,6 +420,25 @@ const MAX_GPS_ACCURACY_METERS =
 const MATCH_THRESHOLD =
 0.50;
 
+/*
+ * Stronger face verification.
+ *
+ * Keep the existing 0.50 maximum distance, but require
+ * consistency across multiple frames and a clear margin
+ * over the second-best staff member.
+ */
+const FACE_VERIFY_FRAMES =
+3;
+
+const FACE_VERIFY_FRAME_DELAY =
+180;
+
+const FACE_MIN_WIN_COUNT =
+2;
+
+const FACE_MIN_MARGIN =
+0.06;
+
 
 const LIVENESS_TIMEOUT =
 25000;
@@ -732,12 +751,70 @@ startButton.addEventListener(
 
 retryButton.addEventListener(
     "click",
-    function() {
+    async function() {
+
+        /*
+         * IMPORTANT:
+         * The old retry handler called startAttendance() while
+         * running was still true. startAttendance() therefore
+         * returned immediately and the retry did nothing.
+         *
+         * A retry is now a completely fresh verification session:
+         * stop timers/camera, clear the previous identity/location,
+         * reset the UI, then start again.
+         */
+        if (processing) {
+            return;
+        }
+
+        retryButton.disabled = true;
+
+        stopLivenessTimers();
+        stopCamera();
+
+        running = false;
+        processing = false;
+        detectionBusy = false;
+
+        attendanceVerified = false;
+        verifiedPerson = null;
+        verifiedDistance = null;
+
+        livenessStage = "IDLE";
+        centerX = null;
+        movementDetected = false;
+
+        selectedAction = "CHECK_IN";
+
+        actionButtons.forEach(function(button) {
+            button.disabled = true;
+            button.classList.remove("active");
+        });
 
         clearResult();
+        clearLocation();
+        setProgress(0);
+
+        status.textContent =
+            "Starting again...";
+
+        instruction.textContent =
+            "Please allow location access if requested.";
 
         retryButton.style.display =
             "none";
+
+        startButton.disabled = true;
+
+        /*
+         * Small pause allows iPhone Safari to finish releasing
+         * the previous camera stream before requesting it again.
+         */
+        await new Promise(function(resolve) {
+            setTimeout(resolve, 250);
+        });
+
+        retryButton.disabled = false;
 
         startAttendance();
 
@@ -2005,208 +2082,414 @@ async function checkLiveness() {
 
 async function verifyFace() {
 
-
-    if (
-        !running
-    ) {
-
+    if (!running) {
         return;
-
     }
 
-
-    processing =
-        true;
-
+    processing = true;
 
     status.textContent =
         "Matching your face...";
 
-
     instruction.textContent =
-        "Please keep still.";
-
+        "Keep still while we verify your identity.";
 
     setProgress(90);
 
-
     try {
 
-
         /*
-         * Detect face + landmarks +
-         * face descriptor.
+         * =========================================================
+         * MULTI-FRAME FACE VERIFICATION
+         * =========================================================
+         *
+         * One frame can occasionally produce an incorrect nearest
+         * neighbour. We therefore verify three separate frames.
+         *
+         * A person is accepted only when:
+         *
+         * 1. Their median best-sample distance is <= 0.50.
+         * 2. They win at least 2 of 3 frames.
+         * 3. They are at least 0.06 closer than the second-best
+         *    staff member, when a second candidate exists.
          */
 
-        const detection =
-            await faceapi
-                .detectSingleFace(
-                    video,
-                    DETECTOR_OPTIONS
-                )
-                .withFaceLandmarks(true)
-                .withFaceDescriptor();
+        const frameResults = [];
 
-
-        if (
-            !detection
+        for (
+            let frameIndex = 0;
+            frameIndex < FACE_VERIFY_FRAMES;
+            frameIndex++
         ) {
 
+            if (!running) {
+                return;
+            }
 
-            throw new Error(
-                "Face was lost. Please try again."
+            const detection =
+                await faceapi
+                    .detectSingleFace(
+                        video,
+                        DETECTOR_OPTIONS
+                    )
+                    .withFaceLandmarks(true)
+                    .withFaceDescriptor();
+
+            if (!detection) {
+                throw new Error(
+                    "Face was lost during verification. Please try again."
+                );
+            }
+
+            const liveDescriptor =
+                Array.from(
+                    detection.descriptor
+                );
+
+            const peopleScores = [];
+
+            registeredFaces.forEach(
+                function(person) {
+
+                    if (
+                        !Array.isArray(
+                            person.samples
+                        )
+                    ) {
+                        return;
+                    }
+
+                    let personBestDistance =
+                        Infinity;
+
+                    person.samples.forEach(
+                        function(sample) {
+
+                            if (
+                                !Array.isArray(sample) ||
+                                sample.length !== 128
+                            ) {
+                                return;
+                            }
+
+                            const distance =
+                                faceapi.euclideanDistance(
+                                    liveDescriptor,
+                                    sample
+                                );
+
+                            if (
+                                distance <
+                                personBestDistance
+                            ) {
+                                personBestDistance =
+                                    distance;
+                            }
+                        }
+                    );
+
+                    if (
+                        Number.isFinite(
+                            personBestDistance
+                        )
+                    ) {
+                        peopleScores.push({
+                            person: person,
+                            distance: personBestDistance
+                        });
+                    }
+                }
             );
 
+            peopleScores.sort(
+                function(a, b) {
+                    return a.distance - b.distance;
+                }
+            );
+
+            if (peopleScores.length > 0) {
+
+                frameResults.push({
+                    winner:
+                        peopleScores[0].person,
+
+                    winnerDistance:
+                        peopleScores[0].distance,
+
+                    scores:
+                        peopleScores
+                });
+
+                console.log(
+                    "FACE FRAME " +
+                    (frameIndex + 1) +
+                    " WINNER:",
+                    peopleScores[0].person.staffName,
+                    "DISTANCE:",
+                    peopleScores[0].distance
+                );
+            }
+
+            if (
+                frameIndex <
+                FACE_VERIFY_FRAMES - 1
+            ) {
+                await new Promise(
+                    function(resolve) {
+                        setTimeout(
+                            resolve,
+                            FACE_VERIFY_FRAME_DELAY
+                        );
+                    }
+                );
+            }
         }
 
-
-        const liveDescriptor =
-            Array.from(
-                detection.descriptor
+        if (
+            frameResults.length !==
+            FACE_VERIFY_FRAMES
+        ) {
+            throw new Error(
+                "Unable to obtain enough face samples. Please try again."
             );
-
-
-        let bestMatch =
-            null;
-
-
-        let bestDistance =
-            Infinity;
-
+        }
 
         /*
-         * Compare the live face with
-         * every sample of every staff member.
+         * Build one aggregate score for every staff member.
          */
+        const candidates = [];
 
         registeredFaces.forEach(
             function(person) {
 
+                const distances = [];
 
-                if (
-                    !Array.isArray(
-                        person.samples
-                    )
-                ) {
+                frameResults.forEach(
+                    function(frame) {
 
-                    return;
-
-                }
-
-
-                person.samples.forEach(
-                    function(sample) {
-
-
-                        if (
-                            !Array.isArray(sample) ||
-                            sample.length !== 128
-                        ) {
-
-                            return;
-
-                        }
-
-
-                        const distance =
-                            faceapi.euclideanDistance(
-                                liveDescriptor,
-                                sample
+                        const match =
+                            frame.scores.find(
+                                function(item) {
+                                    return (
+                                        item.person.staffId ===
+                                        person.staffId
+                                    );
+                                }
                             );
 
-
-                        console.log(
-                            person.staffName +
-                            " distance:",
-                            distance
-                        );
-
-
                         if (
-                            distance <
-                            bestDistance
+                            match &&
+                            Number.isFinite(
+                                match.distance
+                            )
                         ) {
-
-
-                            bestDistance =
-                                distance;
-
-
-                            bestMatch =
-                                person;
-
+                            distances.push(
+                                match.distance
+                            );
                         }
-
                     }
                 );
 
+                if (
+                    distances.length !==
+                    FACE_VERIFY_FRAMES
+                ) {
+                    return;
+                }
+
+                /*
+                 * Median prevents one poor frame from dominating.
+                 */
+                const sortedDistances =
+                    distances.slice().sort(
+                        function(a, b) {
+                            return a - b;
+                        }
+                    );
+
+                const medianDistance =
+                    sortedDistances[
+                        Math.floor(
+                            sortedDistances.length / 2
+                        )
+                    ];
+
+                let winCount = 0;
+
+                frameResults.forEach(
+                    function(frame) {
+
+                        if (
+                            frame.winner.staffId ===
+                            person.staffId
+                        ) {
+                            winCount++;
+                        }
+                    }
+                );
+
+                candidates.push({
+                    person: person,
+                    distance: medianDistance,
+                    winCount: winCount,
+                    frameDistances: distances
+                });
             }
         );
 
-
-        console.log(
-            "BEST MATCH:",
-            bestMatch
+        candidates.sort(
+            function(a, b) {
+                return a.distance - b.distance;
+            }
         );
 
+        const bestCandidate =
+            candidates.length > 0
+                ? candidates[0]
+                : null;
+
+        const secondCandidate =
+            candidates.length > 1
+                ? candidates[1]
+                : null;
+
+        const bestDistance =
+            bestCandidate
+                ? bestCandidate.distance
+                : Infinity;
+
+        const secondDistance =
+            secondCandidate
+                ? secondCandidate.distance
+                : Infinity;
+
+        const margin =
+            secondCandidate
+                ? secondDistance - bestDistance
+                : Infinity;
 
         console.log(
-            "BEST DISTANCE:",
+            "FINAL BEST MATCH:",
+            bestCandidate
+                ? bestCandidate.person.staffName
+                : null
+        );
+
+        console.log(
+            "FINAL BEST DISTANCE:",
             bestDistance
         );
 
+        console.log(
+            "FINAL SECOND BEST:",
+            secondCandidate
+                ? secondCandidate.person.staffName
+                : null
+        );
+
+        console.log(
+            "FINAL SECOND DISTANCE:",
+            secondDistance
+        );
+
+        console.log(
+            "FINAL MATCH MARGIN:",
+            margin
+        );
+
+        console.log(
+            "FINAL WIN COUNT:",
+            bestCandidate
+                ? bestCandidate.winCount
+                : 0
+        );
 
         /*
-         * Reject unknown face.
+         * Strict acceptance.
          */
-
-        if (
-            !bestMatch ||
-            bestDistance >
-            MATCH_THRESHOLD
-        ) {
-
-
-            status.textContent =
-                "Face not recognized.";
-
-
-            instruction.textContent =
-                "Please try again.";
-
-
-            showResult(
-
-                "<h2>Face Not Recognized</h2>" +
-
-                "<p>No registered staff member matched your face.</p>" +
-
-                "<p>Match distance: " +
-
-                Number(
-                    bestDistance
-                ).toFixed(4) +
-
-                "</p>",
-
-                "error"
-
+        const accepted =
+            bestCandidate &&
+            bestDistance <=
+                MATCH_THRESHOLD &&
+            bestCandidate.winCount >=
+                FACE_MIN_WIN_COUNT &&
+            (
+                !secondCandidate ||
+                margin >= FACE_MIN_MARGIN
             );
 
+        if (!accepted) {
+
+            status.textContent =
+                "Face match uncertain.";
+
+            instruction.textContent =
+                "Please look at the camera and tap Try Again.";
+
+            let diagnostic =
+                "<p>Face verification could not establish a sufficiently clear match.</p>";
+
+            if (bestCandidate) {
+
+                diagnostic +=
+                    "<p>Best match: <strong>" +
+                    escapeHtml(
+                        bestCandidate.person.staffName
+                    ) +
+                    "</strong></p>";
+
+                diagnostic +=
+                    "<p>Match distance: " +
+                    Number(
+                        bestDistance
+                    ).toFixed(4) +
+                    "</p>";
+
+                diagnostic +=
+                    "<p>Consistent frames: " +
+                    bestCandidate.winCount +
+                    " of " +
+                    FACE_VERIFY_FRAMES +
+                    "</p>";
+            }
+
+            if (secondCandidate) {
+
+                diagnostic +=
+                    "<p>Second-best distance: " +
+                    Number(
+                        secondDistance
+                    ).toFixed(4) +
+                    "</p>";
+
+                diagnostic +=
+                    "<p>Match margin: " +
+                    Number(
+                        margin
+                    ).toFixed(4) +
+                    "</p>";
+            }
+
+            diagnostic +=
+                "<p>No attendance action has been recorded.</p>";
+
+            showResult(
+                "<h2>Face Match Uncertain</h2>" +
+                diagnostic,
+                "error"
+            );
 
             resetAfterFailure();
 
-
             return;
-
         }
 
-
         /*
-         * Face successfully recognized.
-         * Verification does NOT record attendance. The teacher must
-         * explicitly select one of the attendance actions.
+         * Successful verification.
+         * This still does NOT record attendance.
          */
+        const bestMatch =
+            bestCandidate.person;
 
         attendanceVerified = true;
         verifiedPerson = bestMatch;
@@ -2220,15 +2503,20 @@ async function verifyFace() {
 
         setProgress(100);
 
-        /* Unlock ALL actions only after verification is complete. */
-        actionButtons.forEach(function(button) {
-            button.disabled = false;
-            button.classList.remove("active");
-        });
+        actionButtons.forEach(
+            function(button) {
+                button.disabled = false;
+                button.classList.remove("active");
+            }
+        );
 
         selectedAction = "CHECK_IN";
+
         const checkInButton =
-            document.querySelector('[data-action="CHECK_IN"]');
+            document.querySelector(
+                '[data-action="CHECK_IN"]'
+            );
+
         if (checkInButton) {
             checkInButton.classList.add("active");
         }
@@ -2240,17 +2528,41 @@ async function verifyFace() {
 
         showResult(
             "<h2>Verification Successful</h2>" +
-            "<p><strong>" + escapeHtml(bestMatch.staffName) + "</strong></p>" +
+            "<p><strong>" +
+            escapeHtml(
+                bestMatch.staffName
+            ) +
+            "</strong></p>" +
             "<p>Face and location verified.</p>" +
+            "<p>Match distance: " +
+            Number(
+                bestDistance
+            ).toFixed(4) +
+            "</p>" +
+            "<p>Verification consistency: " +
+            bestCandidate.winCount +
+            "/" +
+            FACE_VERIFY_FRAMES +
+            "</p>" +
+            (
+                secondCandidate
+                    ? "<p>Match margin: " +
+                      Number(
+                          margin
+                      ).toFixed(4) +
+                      "</p>"
+                    : ""
+            ) +
             "<p>Select an attendance action to record.</p>",
             "success"
         );
 
-        /* Camera is no longer needed after authentication. */
         stopLivenessTimers();
         stopCamera();
+
         running = false;
         processing = false;
+
         startButton.disabled = false;
         startButton.textContent = "Re-Verify";
 
@@ -2258,42 +2570,31 @@ async function verifyFace() {
 
     catch (error) {
 
-
         console.error(
+            "Face verification error:",
             error
         );
-
 
         status.textContent =
             "Verification failed.";
 
-
         instruction.textContent =
-            "Please try again.";
-
+            "Please tap Try Again.";
 
         showResult(
-
             "<h2>Verification Failed</h2>" +
-
             "<p>" +
-
             escapeHtml(
                 error.message ||
                 "Unable to verify face."
             ) +
-
-            "</p>",
-
+            "</p>" +
+            "<p>No attendance action has been recorded.</p>",
             "error"
-
         );
 
-
         resetAfterFailure();
-
     }
-
 }
 
 
@@ -2794,27 +3095,29 @@ function livenessFailed() {
 
 function resetAfterFailure() {
 
-
     stopLivenessTimers();
+
+    /*
+     * Any failed verification invalidates the previous identity.
+     * Attendance actions must remain locked until a fresh
+     * location + face + liveness verification succeeds.
+     */
+    attendanceVerified = false;
+    verifiedPerson = null;
+    verifiedDistance = null;
 
     restoreActionButtonsAfterFailure();
 
-
     /*
-     * Keep camera open.
+     * Keep the camera open for the Try Again button.
      */
+    retryButton.disabled = false;
+    retryButton.style.display = "block";
 
-    retryButton.style.display =
-        "block";
-
-
-    processing =
-        false;
-
+    processing = false;
 
     status.textContent =
         "Verification failed.";
-
 
     instruction.textContent =
         "Tap Try Again.";
