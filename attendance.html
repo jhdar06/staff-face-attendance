@@ -282,7 +282,10 @@ const MAX_GPS_ACCURACY_METERS =
 ========================================================= */
 
 const MATCH_THRESHOLD =
-0.50;
+0.46;
+
+const FACE_FRAME_THRESHOLD =
+0.48;
 
 /*
  * Stronger face verification.
@@ -292,16 +295,25 @@ const MATCH_THRESHOLD =
  * over the second-best staff member.
  */
 const FACE_VERIFY_FRAMES =
-3;
+5;
 
 const FACE_VERIFY_FRAME_DELAY =
-180;
+220;
 
 const FACE_MIN_WIN_COUNT =
-2;
+4;
 
 const FACE_MIN_MARGIN =
-0.06;
+0.08;
+
+const FACE_MIN_STRONG_FRAMES =
+4;
+
+const FACE_CLOSEST_SAMPLE_COUNT =
+3;
+
+const FACE_MIN_DETECTION_SCORE =
+0.70;
 
 
 const LIVENESS_TIMEOUT =
@@ -2010,414 +2022,200 @@ async function checkLiveness() {
 
 async function verifyFace() {
 
-    if (!running) {
-        return;
-    }
+    if (!running) return;
 
     processing = true;
-
-    status.textContent =
-        "Matching your face...";
-
-    instruction.textContent =
-        "Keep still while we verify your identity.";
-
+    status.textContent = "Matching your face...";
+    instruction.textContent = "Keep still while we verify your identity.";
     setProgress(90);
 
     try {
 
         /*
-         * =========================================================
-         * MULTI-FRAME FACE VERIFICATION
-         * =========================================================
-         *
-         * One frame can occasionally produce an incorrect nearest
-         * neighbour. We therefore verify three separate frames.
-         *
-         * A person is accepted only when:
-         *
-         * 1. Their median best-sample distance is <= 0.50.
-         * 2. They win at least 2 of 3 frames.
-         * 3. They are at least 0.06 closer than the second-best
-         *    staff member, when a second candidate exists.
+         * Hardened verification:
+         * - 5 independent frames instead of 3
+         * - exactly one visible face
+         * - minimum detector confidence
+         * - compare against the 3 closest registration samples,
+         *   rather than trusting a single unusually close sample
+         * - same identity must win at least 4/5 frames
+         * - at least 4 frames must be strong matches
+         * - aggregate distance and runner-up margin are both checked
          */
-
         const frameResults = [];
 
-        for (
-            let frameIndex = 0;
-            frameIndex < FACE_VERIFY_FRAMES;
-            frameIndex++
-        ) {
+        for (let frameIndex = 0; frameIndex < FACE_VERIFY_FRAMES; frameIndex++) {
 
-            if (!running) {
-                return;
+            if (!running) return;
+
+            const detections = await faceapi
+                .detectAllFaces(video, DETECTOR_OPTIONS)
+                .withFaceLandmarks(true)
+                .withFaceDescriptors();
+
+            if (!detections || detections.length === 0) {
+                throw new Error("Face was lost during verification. Please try again.");
             }
 
-            const detection =
-                await faceapi
-                    .detectSingleFace(
-                        video,
-                        DETECTOR_OPTIONS
-                    )
-                    .withFaceLandmarks(true)
-                    .withFaceDescriptor();
-
-            if (!detection) {
-                throw new Error(
-                    "Face was lost during verification. Please try again."
-                );
+            if (detections.length > 1) {
+                throw new Error("More than one face was detected. Please make sure only your face is visible.");
             }
 
-            const liveDescriptor =
-                Array.from(
-                    detection.descriptor
-                );
+            const detection = detections[0];
 
+            if (!detection.detection || detection.detection.score < FACE_MIN_DETECTION_SCORE) {
+                throw new Error("The camera could not get a clear view of your face. Please move closer and use good lighting.");
+            }
+
+            const liveDescriptor = Array.from(detection.descriptor);
             const peopleScores = [];
 
-            registeredFaces.forEach(
-                function(person) {
+            registeredFaces.forEach(function(person) {
 
-                    if (
-                        !Array.isArray(
-                            person.samples
-                        )
-                    ) {
-                        return;
-                    }
-
-                    let personBestDistance =
-                        Infinity;
-
-                    person.samples.forEach(
-                        function(sample) {
-
-                            if (
-                                !Array.isArray(sample) ||
-                                sample.length !== 128
-                            ) {
-                                return;
-                            }
-
-                            const distance =
-                                faceapi.euclideanDistance(
-                                    liveDescriptor,
-                                    sample
-                                );
-
-                            if (
-                                distance <
-                                personBestDistance
-                            ) {
-                                personBestDistance =
-                                    distance;
-                            }
-                        }
-                    );
-
-                    if (
-                        Number.isFinite(
-                            personBestDistance
-                        )
-                    ) {
-                        peopleScores.push({
-                            person: person,
-                            distance: personBestDistance
-                        });
-                    }
-                }
-            );
-
-            peopleScores.sort(
-                function(a, b) {
-                    return a.distance - b.distance;
-                }
-            );
-
-            if (peopleScores.length > 0) {
-
-                frameResults.push({
-                    winner:
-                        peopleScores[0].person,
-
-                    winnerDistance:
-                        peopleScores[0].distance,
-
-                    scores:
-                        peopleScores
-                });
-
-                console.log(
-                    "FACE FRAME " +
-                    (frameIndex + 1) +
-                    " WINNER:",
-                    peopleScores[0].person.staffName,
-                    "DISTANCE:",
-                    peopleScores[0].distance
-                );
-            }
-
-            if (
-                frameIndex <
-                FACE_VERIFY_FRAMES - 1
-            ) {
-                await new Promise(
-                    function(resolve) {
-                        setTimeout(
-                            resolve,
-                            FACE_VERIFY_FRAME_DELAY
-                        );
-                    }
-                );
-            }
-        }
-
-        if (
-            frameResults.length !==
-            FACE_VERIFY_FRAMES
-        ) {
-            throw new Error(
-                "Unable to obtain enough face samples. Please try again."
-            );
-        }
-
-        /*
-         * Build one aggregate score for every staff member.
-         */
-        const candidates = [];
-
-        registeredFaces.forEach(
-            function(person) {
+                if (!Array.isArray(person.samples)) return;
 
                 const distances = [];
 
-                frameResults.forEach(
-                    function(frame) {
+                person.samples.forEach(function(sample) {
+                    if (!Array.isArray(sample) || sample.length !== 128) return;
 
-                        const match =
-                            frame.scores.find(
-                                function(item) {
-                                    return (
-                                        item.person.staffId ===
-                                        person.staffId
-                                    );
-                                }
-                            );
+                    const d = faceapi.euclideanDistance(liveDescriptor, sample);
+                    if (Number.isFinite(d)) distances.push(d);
+                });
 
-                        if (
-                            match &&
-                            Number.isFinite(
-                                match.distance
-                            )
-                        ) {
-                            distances.push(
-                                match.distance
-                            );
-                        }
-                    }
-                );
+                if (!distances.length) return;
 
-                if (
-                    distances.length !==
-                    FACE_VERIFY_FRAMES
-                ) {
-                    return;
-                }
+                distances.sort(function(a, b) { return a - b; });
 
-                /*
-                 * Median prevents one poor frame from dominating.
-                 */
-                const sortedDistances =
-                    distances.slice().sort(
-                        function(a, b) {
-                            return a - b;
-                        }
-                    );
+                const count = Math.min(FACE_CLOSEST_SAMPLE_COUNT, distances.length);
+                const closest = distances.slice(0, count);
+                const robustDistance = closest.reduce(function(sum, value) {
+                    return sum + value;
+                }, 0) / closest.length;
 
-                const medianDistance =
-                    sortedDistances[
-                        Math.floor(
-                            sortedDistances.length / 2
-                        )
-                    ];
-
-                let winCount = 0;
-
-                frameResults.forEach(
-                    function(frame) {
-
-                        if (
-                            frame.winner.staffId ===
-                            person.staffId
-                        ) {
-                            winCount++;
-                        }
-                    }
-                );
-
-                candidates.push({
+                peopleScores.push({
                     person: person,
-                    distance: medianDistance,
-                    winCount: winCount,
-                    frameDistances: distances
+                    distance: robustDistance,
+                    bestSampleDistance: distances[0]
+                });
+            });
+
+            peopleScores.sort(function(a, b) { return a.distance - b.distance; });
+
+            if (!peopleScores.length) {
+                throw new Error("No valid registered face templates were available.");
+            }
+
+            frameResults.push({
+                winner: peopleScores[0].person,
+                winnerDistance: peopleScores[0].distance,
+                scores: peopleScores,
+                detectionScore: detection.detection.score
+            });
+
+            console.log(
+                "FACE FRAME " + (frameIndex + 1),
+                peopleScores[0].person.staffName,
+                "ROBUST DISTANCE:", peopleScores[0].distance,
+                "BEST SAMPLE:", peopleScores[0].bestSampleDistance,
+                "DETECTION:", detection.detection.score
+            );
+
+            if (frameIndex < FACE_VERIFY_FRAMES - 1) {
+                await new Promise(function(resolve) {
+                    setTimeout(resolve, FACE_VERIFY_FRAME_DELAY);
                 });
             }
-        );
+        }
 
-        candidates.sort(
-            function(a, b) {
-                return a.distance - b.distance;
-            }
-        );
+        const candidates = [];
 
-        const bestCandidate =
-            candidates.length > 0
-                ? candidates[0]
-                : null;
+        registeredFaces.forEach(function(person) {
 
-        const secondCandidate =
-            candidates.length > 1
-                ? candidates[1]
-                : null;
+            const distances = [];
+            let winCount = 0;
+            let strongFrameCount = 0;
 
-        const bestDistance =
-            bestCandidate
-                ? bestCandidate.distance
-                : Infinity;
+            frameResults.forEach(function(frame) {
+                const match = frame.scores.find(function(item) {
+                    return item.person.staffId === person.staffId;
+                });
 
-        const secondDistance =
-            secondCandidate
-                ? secondCandidate.distance
-                : Infinity;
+                if (match && Number.isFinite(match.distance)) {
+                    distances.push(match.distance);
 
-        const margin =
-            secondCandidate
-                ? secondDistance - bestDistance
-                : Infinity;
+                    if (frame.winner.staffId === person.staffId) {
+                        winCount++;
+                        if (match.distance <= FACE_FRAME_THRESHOLD) {
+                            strongFrameCount++;
+                        }
+                    }
+                }
+            });
 
-        console.log(
-            "FINAL BEST MATCH:",
-            bestCandidate
-                ? bestCandidate.person.staffName
-                : null
-        );
+            if (distances.length !== FACE_VERIFY_FRAMES) return;
 
-        console.log(
-            "FINAL BEST DISTANCE:",
-            bestDistance
-        );
+            const sorted = distances.slice().sort(function(a, b) { return a - b; });
+            const medianDistance = sorted[Math.floor(sorted.length / 2)];
 
-        console.log(
-            "FINAL SECOND BEST:",
-            secondCandidate
-                ? secondCandidate.person.staffName
-                : null
-        );
+            candidates.push({
+                person: person,
+                distance: medianDistance,
+                winCount: winCount,
+                strongFrameCount: strongFrameCount,
+                frameDistances: distances
+            });
+        });
 
-        console.log(
-            "FINAL SECOND DISTANCE:",
-            secondDistance
-        );
+        candidates.sort(function(a, b) { return a.distance - b.distance; });
 
-        console.log(
-            "FINAL MATCH MARGIN:",
-            margin
-        );
+        const bestCandidate = candidates[0] || null;
+        const secondCandidate = candidates[1] || null;
+        const bestDistance = bestCandidate ? bestCandidate.distance : Infinity;
+        const secondDistance = secondCandidate ? secondCandidate.distance : Infinity;
+        const margin = secondCandidate ? secondDistance - bestDistance : Infinity;
 
-        console.log(
-            "FINAL WIN COUNT:",
-            bestCandidate
-                ? bestCandidate.winCount
-                : 0
-        );
+        console.log("FINAL BEST MATCH:", bestCandidate ? bestCandidate.person.staffName : null);
+        console.log("FINAL BEST DISTANCE:", bestDistance);
+        console.log("FINAL SECOND BEST:", secondCandidate ? secondCandidate.person.staffName : null);
+        console.log("FINAL SECOND DISTANCE:", secondDistance);
+        console.log("FINAL MATCH MARGIN:", margin);
+        console.log("FINAL WIN COUNT:", bestCandidate ? bestCandidate.winCount : 0);
+        console.log("FINAL STRONG FRAME COUNT:", bestCandidate ? bestCandidate.strongFrameCount : 0);
 
-        /*
-         * Strict acceptance.
-         */
         const accepted =
             bestCandidate &&
-            bestDistance <=
-                MATCH_THRESHOLD &&
-            bestCandidate.winCount >=
-                FACE_MIN_WIN_COUNT &&
-            (
-                !secondCandidate ||
-                margin >= FACE_MIN_MARGIN
-            );
+            bestDistance <= MATCH_THRESHOLD &&
+            bestCandidate.winCount >= FACE_MIN_WIN_COUNT &&
+            bestCandidate.strongFrameCount >= FACE_MIN_STRONG_FRAMES &&
+            (!secondCandidate || margin >= FACE_MIN_MARGIN);
 
         if (!accepted) {
 
-            status.textContent =
-                "Face match uncertain.";
+            status.textContent = "Face match uncertain.";
+            instruction.textContent = "Please try again with your full face clearly visible.";
 
-            instruction.textContent =
-                "Please look at the camera and tap Try Again.";
-
-            let diagnostic =
-                "<p>Face verification could not establish a sufficiently clear match.</p>";
+            let diagnostic = "<p>Face verification could not establish a sufficiently clear match.</p>";
 
             if (bestCandidate) {
-
-                diagnostic +=
-                    "<p>Best match: <strong>" +
-                    escapeHtml(
-                        bestCandidate.person.staffName
-                    ) +
-                    "</strong></p>";
-
-                diagnostic +=
-                    "<p>Match distance: " +
-                    Number(
-                        bestDistance
-                    ).toFixed(4) +
-                    "</p>";
-
-                diagnostic +=
-                    "<p>Consistent frames: " +
-                    bestCandidate.winCount +
-                    " of " +
-                    FACE_VERIFY_FRAMES +
-                    "</p>";
+                diagnostic += "<p>Best match: <strong>" + escapeHtml(bestCandidate.person.staffName) + "</strong></p>";
+                diagnostic += "<p>Match distance: " + Number(bestDistance).toFixed(4) + "</p>";
+                diagnostic += "<p>Consistent frames: " + bestCandidate.winCount + " of " + FACE_VERIFY_FRAMES + "</p>";
             }
 
             if (secondCandidate) {
-
-                diagnostic +=
-                    "<p>Second-best distance: " +
-                    Number(
-                        secondDistance
-                    ).toFixed(4) +
-                    "</p>";
-
-                diagnostic +=
-                    "<p>Match margin: " +
-                    Number(
-                        margin
-                    ).toFixed(4) +
-                    "</p>";
+                diagnostic += "<p>Second-best distance: " + Number(secondDistance).toFixed(4) + "</p>";
+                diagnostic += "<p>Match margin: " + Number(margin).toFixed(4) + "</p>";
             }
 
-            diagnostic +=
-                "<p>No attendance action has been recorded.</p>";
+            diagnostic += "<p>No attendance action has been recorded.</p>";
 
-            showResult(
-                "<h2>Face Match Uncertain</h2>" +
-                diagnostic,
-                "error"
-            );
-
+            showResult("<h2>Face Match Uncertain</h2>" + diagnostic, "error");
             resetAfterFailure();
-
             return;
         }
 
-        /*
-         * Successful verification.
-         * This still does NOT record attendance.
-         */
-        const bestMatch =
-            bestCandidate.person;
+        const bestMatch = bestCandidate.person;
 
         attendanceVerified = true;
         verifiedPerson = bestMatch;
@@ -2426,101 +2224,51 @@ async function verifyFace() {
         showActionPanel(bestMatch);
         setAttendanceStep(3);
         setCameraTip("Verification complete.");
-
-        status.textContent =
-            "You are verified.";
-
-        instruction.textContent =
-            "Choose the attendance option that matches your action.";
-
+        status.textContent = "You are verified.";
+        instruction.textContent = "Choose the attendance option that matches your action.";
         setProgress(100);
 
-        actionButtons.forEach(
-            function(button) {
-                button.disabled = false;
-                button.classList.remove("active");
-            }
-        );
+        actionButtons.forEach(function(button) {
+            button.disabled = false;
+            button.classList.remove("active");
+        });
 
         selectedAction = "CHECK_IN";
 
-        const checkInButton =
-            document.querySelector(
-                '[data-action="CHECK_IN"]'
-            );
-
-        if (checkInButton) {
-            checkInButton.classList.add("active");
-        }
+        const checkInButton = document.querySelector('[data-action="CHECK_IN"]');
+        if (checkInButton) checkInButton.classList.add("active");
 
         actionInfo.textContent =
-            "Verified as " +
-            bestMatch.staffName +
+            "Verified as " + bestMatch.staffName +
             ". Select any action. The system will check today's attendance data automatically.";
 
         showResult(
             "<h2>Verification Successful</h2>" +
-            "<p><strong>" +
-            escapeHtml(
-                bestMatch.staffName
-            ) +
-            "</strong></p>" +
+            "<p><strong>" + escapeHtml(bestMatch.staffName) + "</strong></p>" +
             "<p>Face and location verified.</p>" +
-            "<p>Match distance: " +
-            Number(
-                bestDistance
-            ).toFixed(4) +
-            "</p>" +
-            "<p>Verification consistency: " +
-            bestCandidate.winCount +
-            "/" +
-            FACE_VERIFY_FRAMES +
-            "</p>" +
-            (
-                secondCandidate
-                    ? "<p>Match margin: " +
-                      Number(
-                          margin
-                      ).toFixed(4) +
-                      "</p>"
-                    : ""
-            ) +
+            "<p>Match distance: " + Number(bestDistance).toFixed(4) + "</p>" +
+            "<p>Verification consistency: " + bestCandidate.winCount + "/" + FACE_VERIFY_FRAMES + "</p>" +
+            (secondCandidate ? "<p>Match margin: " + Number(margin).toFixed(4) + "</p>" : "") +
             "<p>Select an attendance action to record.</p>",
             "success"
         );
 
         stopLivenessTimers();
         stopCamera();
-
         running = false;
         processing = false;
-
         startButton.disabled = false;
         startButton.textContent = "Re-Verify";
 
-    }
+    } catch (error) {
 
-    catch (error) {
-
-        console.error(
-            "Face verification error:",
-            error
-        );
-
-        status.textContent =
-            "Verification failed.";
-
-        instruction.textContent =
-            "Please tap Try Again.";
+        console.error("Face verification error:", error);
+        status.textContent = "Verification failed.";
+        instruction.textContent = "Please tap Try Again.";
 
         showResult(
             "<h2>Verification Failed</h2>" +
-            "<p>" +
-            escapeHtml(
-                error.message ||
-                "Unable to verify face."
-            ) +
-            "</p>" +
+            "<p>" + escapeHtml(error.message || "Unable to verify face.") + "</p>" +
             "<p>No attendance action has been recorded.</p>",
             "error"
         );
