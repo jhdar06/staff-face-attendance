@@ -2585,6 +2585,8 @@ function sendAttendance(
     window[callbackName] =
         function(data) {
 
+            /* Server response received: reveal the final result immediately. */
+            hideRecordingAnimation();
 
             try {
 
@@ -3034,6 +3036,7 @@ function livenessFailed() {
 
 function resetAfterFailure() {
 
+    /* Safety net: never leave the recording overlay visible after a failure. */
     hideRecordingAnimation();
 
     stopLivenessTimers();
