@@ -877,7 +877,8 @@ async function startAttendance() {
 
         /*
          * STEP 2
-         * Check GPS accuracy.
+         * Confirm the smart GPS acquisition returned a reading
+         * within the existing security limit.
          */
 
         if (
@@ -1089,130 +1090,147 @@ function getCurrentLocation() {
     return new Promise(
         function(resolve, reject) {
 
-
             /*
              * Browser does not support geolocation.
              */
-
-            if (
-                !navigator.geolocation
-            ) {
-
+            if (!navigator.geolocation) {
                 reject(
                     new Error(
                         "This browser does not support location services."
                     )
                 );
-
                 return;
-
             }
 
+            /*
+             * SMART GPS ACQUISITION
+             *
+             * iPhone/Safari may return a very coarse first reading
+             * (for example 1000+ metres) and improve it after a few
+             * seconds. Do not reject the first reading immediately.
+             *
+             * We watch for up to 40 seconds, keep the most accurate
+             * reading, and continue as soon as accuracy reaches the
+             * existing 100 m security limit. The limit itself is NOT
+             * relaxed.
+             */
+            const GPS_ACQUISITION_TIMEOUT = 40000;
+            const GPS_GOOD_ACCURACY = MAX_GPS_ACCURACY_METERS;
 
-            navigator.geolocation.getCurrentPosition(
+            let watchId = null;
+            let finished = false;
+            let bestPosition = null;
+            let bestAccuracy = Infinity;
+            let timeoutId = null;
 
-                function(position) {
+            function cleanup() {
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                    watchId = null;
+                }
+                if (timeoutId !== null) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+            }
 
+            function finishSuccess(position) {
+                if (finished) return;
+                finished = true;
+                cleanup();
 
-                    if (
-                        !position ||
-                        !position.coords
-                    ) {
+                resolve({
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy
+                });
+            }
 
-                        reject(
-                            new Error(
-                                "Unable to read your location."
-                            )
-                        );
+            function finishError(message) {
+                if (finished) return;
+                finished = true;
+                cleanup();
+                reject(new Error(message));
+            }
 
-                        return;
+            timeoutId = setTimeout(function() {
+                if (finished) return;
 
-                    }
-
-
-                    resolve({
-
-                        latitude:
-                            position.coords.latitude,
-
-                        longitude:
-                            position.coords.longitude,
-
-                        accuracy:
-                            position.coords.accuracy
-
-                    });
-
-                },
-
-
-                function(error) {
-
-
-                    let message =
-                        "Unable to obtain your location.";
-
-
-                    if (
-                        error.code ===
-                        error.PERMISSION_DENIED
-                    ) {
-
-                        message =
-                            "Location permission was denied. Please allow location access for this website and try again.";
-
-                    }
-
-                    else if (
-                        error.code ===
-                        error.POSITION_UNAVAILABLE
-                    ) {
-
-                        message =
-                            "Your location is currently unavailable. Please make sure Location Services are enabled and try again.";
-
-                    }
-
-                    else if (
-                        error.code ===
-                        error.TIMEOUT
-                    ) {
-
-                        message =
-                            "Location request timed out. Please try again.";
-
-                    }
-
-
-                    reject(
-                        new Error(
-                            message
-                        )
-                    );
-
-                },
-
-
-                {
-
-                    /*
-                     * Ask for the most accurate
-                     * location available.
-                     */
-
-                    enableHighAccuracy:
-                        true,
-
-                    timeout:
-                        15000,
-
-                    maximumAge:
-                        0
-
+                if (bestPosition && bestAccuracy <= GPS_GOOD_ACCURACY) {
+                    finishSuccess(bestPosition);
+                    return;
                 }
 
-            );
+                if (bestPosition) {
+                    finishError(
+                        "GPS accuracy is still too low (" +
+                        Math.round(bestAccuracy) +
+                        " metres). Please move to an open area, make sure Precise Location is enabled, and try again."
+                    );
+                } else {
+                    finishError(
+                        "Unable to obtain a reliable GPS location. Please make sure Location Services and Precise Location are enabled, then try again."
+                    );
+                }
+            }, GPS_ACQUISITION_TIMEOUT);
 
+            watchId = navigator.geolocation.watchPosition(
+                function(position) {
+                    if (finished || !position || !position.coords) return;
+
+                    const accuracy = Number(position.coords.accuracy);
+                    if (!Number.isFinite(accuracy) || accuracy <= 0) return;
+
+                    /* Keep the best GPS reading received so far. */
+                    if (accuracy < bestAccuracy) {
+                        bestAccuracy = accuracy;
+                        bestPosition = position;
+                    }
+
+                    if (accuracy > GPS_GOOD_ACCURACY) {
+                        status.textContent = "Improving GPS accuracy…";
+                        instruction.textContent =
+                            "Please remain near an open area for a few seconds. Current accuracy: approximately " +
+                            Math.round(accuracy) +
+                            " metres.";
+                    }
+
+                    /* Continue immediately when a reliable reading arrives. */
+                    if (accuracy <= GPS_GOOD_ACCURACY) {
+                        finishSuccess(position);
+                    }
+                },
+                function(error) {
+                    if (finished) return;
+
+                    if (error.code === error.PERMISSION_DENIED) {
+                        finishError(
+                            "Location permission was denied. Please allow location access for this website and try again."
+                        );
+                        return;
+                    }
+
+                    /* Temporary GPS errors should not abort the acquisition. */
+                    console.warn("GPS watch error:", error);
+                    status.textContent = "Still checking your location…";
+
+                    if (error.code === error.POSITION_UNAVAILABLE) {
+                        instruction.textContent =
+                            "Your location is temporarily unavailable. Please remain near an open area while GPS tries again.";
+                    } else if (error.code === error.TIMEOUT) {
+                        instruction.textContent =
+                            "GPS is still trying to obtain a reliable position. Please wait a few seconds.";
+                    } else {
+                        instruction.textContent =
+                            "Please keep Location Services enabled while we obtain a reliable GPS position.";
+                    }
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 0
+                }
+            );
         }
     );
 
