@@ -1003,16 +1003,30 @@ async function startAttendance() {
                 });
 
 
-        video.srcObject =
-            cameraStream;
-
+        /* iPhone/Safari camera hardening */
+        video.autoplay = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        video.srcObject = cameraStream;
 
         cameraBox.style.display =
             "block";
 
+        try {
+            await video.play();
+        } catch (playError) {
+            console.warn("Initial camera play() was delayed:", playError);
+        }
 
-        await waitForVideo();
+        const videoReady = await waitForVideo();
 
+        if (!videoReady) {
+            throw new Error(
+                "Camera stream opened but the live preview did not start. Please tap Retry and try again."
+            );
+        }
 
         processing =
             false;
@@ -1647,47 +1661,39 @@ function waitForVideo() {
     return new Promise(
         function(resolve) {
 
-
             let attempts =
                 0;
-
 
             const timer =
                 setInterval(
                     function() {
 
-
                         attempts++;
 
+                        /*
+                         * Some iOS/WebKit releases can have an active
+                         * MediaStream while the video element is still
+                         * waiting to present its first frame.
+                         */
+                        if (video.paused) {
+                            video.play()
+                                .catch(function() {});
+                        }
 
                         if (
                             video.readyState >= 2 &&
-                            video.videoWidth > 0
+                            video.videoWidth > 0 &&
+                            video.videoHeight > 0
                         ) {
-
-
-                            clearInterval(
-                                timer
-                            );
-
-
-                            resolve();
-
+                            clearInterval(timer);
+                            resolve(true);
+                            return;
                         }
 
-
-                        if (
-                            attempts > 50
-                        ) {
-
-
-                            clearInterval(
-                                timer
-                            );
-
-
-                            resolve();
-
+                        /* Wait up to 15 seconds for the first usable frame. */
+                        if (attempts >= 150) {
+                            clearInterval(timer);
+                            resolve(false);
                         }
 
                     },
@@ -1696,7 +1702,6 @@ function waitForVideo() {
 
         }
     );
-
 }
 
 
