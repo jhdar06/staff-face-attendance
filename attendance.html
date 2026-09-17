@@ -930,29 +930,21 @@ async function startAttendance() {
         instruction.textContent =
             "Starting camera...";
 
-
         /*
-         * STEP 4
-         * Load face models.
-         */
-
-        await loadFaceModels();
-
-
-        /*
-         * STEP 5
-         * Load registered faces.
+         * STEP 4 + STEP 5
+         * These operations are independent, so start them in parallel.
          */
 
         status.textContent =
-            "Loading registered staff...";
-
+            "Preparing face verification...";
 
         instruction.textContent =
-            "Please wait.";
+            "Loading security data. Please wait.";
 
-
-        await loadRegisteredFaces();
+        await Promise.all([
+            loadFaceModels(),
+            loadRegisteredFaces()
+        ]);
 
 
         if (
